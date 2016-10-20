@@ -13,6 +13,10 @@
 #include <initializer_list>
 #include <memory>
 
+#ifdef FIBONACCI_HEAP_TEST_FRIEND
+class FIBONACCI_HEAP_TEST_FRIEND;
+#endif
+
 /** \brief A C++ implementation of Fibonacci heap
  *
  * @param K the type for keys
@@ -21,6 +25,13 @@
  */
 template <typename K, typename T, typename Compare=std::less<K>>
 class fibonacci_heap {
+
+	/** To allow user defined test class to access private members of this class,
+	  * simply define the test class name as macro FIBONACCI_HEAP_TEST_FRIEND
+	  */
+	#ifdef FIBONACCI_HEAP_TEST_FRIEND
+	friend class FIBONACCI_HEAP_TEST_FRIEND;
+	#endif
 
 	class internal_data;
 
@@ -34,8 +45,14 @@ class fibonacci_heap {
 		std::shared_ptr<internal_data> data;
 		std::shared_ptr<internal_structure> right_sibling;
 		std::weak_ptr<internal_structure> left_sibling;
-		std::shared_ptr<internal_structure> children;
+		std::shared_ptr<internal_structure> child;
 		std::weak_ptr<internal_structure> parent;
+		~internal_structure() {
+			data->structure = nullptr;
+			// cut loops inside child's sibling list so that std::shared_ptr can
+			// automatically free unneeded memory
+			if(child) child->right_sibling = nullptr;
+		}
 	};
 
 	/** \brief the interal class used to store data in Fibonacci heap */
@@ -44,7 +61,51 @@ class fibonacci_heap {
 		std::weak_ptr<internal_structure> structure;
 		K key;
 		T data;
+		~internal_data() {
+			if(!structure.expired()) throw "data node in use, destructing will cause unexpected behavior";
+		}
 	};
+
+	/** \brief recursively duplicate nodes and create a new tree, including structure node and data node
+	 *
+	 * @param root the root node of the tree to be duplicated
+	 *
+	 * @param head used to denote what phase this function is doing. If head==nullptr,
+	 * then this function has just started at a doubly linked list; if head!=nullptr,
+	 * then this function is checking inside the doubly linked list and head is the first
+	 * element of the doubly linked list.
+	 *
+	 * @param newhead used only in the case when head!=nullptr, then newhead is
+	 * the pointer towards the duplicated node of head
+	 *
+	 * @return pointer to the node of the duplicated tree
+	 */
+	static std::shared_ptr<internal_structure> duplicate_nodes(std::shared_ptr<internal_structure> root,std::shared_ptr<internal_structure> head,std::shared_ptr<internal_structure> newhead) {
+		if(root==head) return nullptr;
+		std::shared_ptr<internal_structure> newroot = std::make_shared<internal_structure>(*root);
+		if(head==nullptr) {
+			head = root;
+			newhead = newroot;
+		}
+		// setup new data
+		std::shared_ptr<internal_data> newroot_data = std::make_shared<internal_data>(root->data);
+		newroot_data->structure = newroot;
+		newroot->data = newroot_data;
+		// setup new right_sibling
+		newroot->right_sibling = duplicate_nodes(root->right_sibling, head, newhead);
+		if(newroot->right_sibling==nullptr)
+			newroot->right_sibling = newhead;
+		// setup new left_sibling
+		newroot->right_sibling->left_sibling = newroot;
+		// setup new child
+		newroot->child = duplicate_nodes(root->child, nullptr, nullptr);
+		// setup new parent
+		newroot->parent = nullptr;
+		if(newroot->child) newroot->child->parent = newroot;
+	}
+
+	std::shared_ptr<internal_structure> min;
+	size_t _size;
 
 public:
 
@@ -57,6 +118,25 @@ public:
 	fibonacci_heap(std::initializer_list<std::tuple<K,T>> list) {
 		for(auto &i:list)
 			insert(std::get<0>(i),std::get<1>(i));
+	}
+
+	/** \brief the copy constructor.
+	 *
+	 * Shallow copy will mess up the data structure and therefore is not allowed.
+	 * Whenever the user tries to make a copy of a fibonacci_heap object, a deep
+	 * copy will be made.
+	 *
+	 * Also note that the node object at old Fibonacci heap can not be used at
+	 * copied Fibonacci heap.
+	 *
+	 * @param old the Fibonacci heap to be copied
+	 */
+	fibonacci_heap(const fibonacci_heap &old):_size(old._size),min(duplicate_nodes(old.min,nullptr,nullptr)) {}
+
+	~fibonacci_heap() {
+		// cut loops inside the forest list so that std::shared_ptr can
+		// automatically free unneeded memory
+		if(min) min->right_sibling = nullptr;
 	}
 
 	/** \brief Reference to nodes in Fibonacci heap.
@@ -100,7 +180,7 @@ public:
 	 *
 	 * @return number of elements stored in this Fibonacci heap
 	 */
-	size_t size();
+	size_t size() { return _size; }
 
 	/** \brief Insert an element.
 	 *
