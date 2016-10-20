@@ -139,6 +139,30 @@ public:
 		if(min) min->right_sibling = nullptr;
 	}
 
+	/** \brief the copy assignment operator
+	 *
+	 * Shallow copy will mess up the data structure and therefore is not allowed.
+	 * Whenever the user tries to a fibonacci_heap object to another object, a deep
+	 * copy will be made.
+	 *
+	 * Also note that the node object at old Fibonacci heap can not be used at
+	 * the new Fibonacci heap.
+	 *
+	 * @param old the Fibonacci heap to be copied
+	 *
+	 * @return reference to this object
+	 */
+	fibonacci_heap& operator = (const fibonacci_heap &old) {
+		// clean up the current Fibonacci heap
+		if(min!=nullptr) {
+			~fibonacci_heap();
+		}
+		// make a copy of old
+		_size = old._size;
+		min = duplicate_nodes(old.min, nullptr, nullptr);
+		return *this;
+	}
+
 	/** \brief Reference to nodes in Fibonacci heap.
 	 *
 	 * Objects of node should be returned from methods of fibonacci_heap,
