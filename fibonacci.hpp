@@ -47,6 +47,7 @@ class fibonacci_heap {
 		std::weak_ptr<internal_structure> left_sibling;
 		std::shared_ptr<internal_structure> child;
 		std::weak_ptr<internal_structure> parent;
+		std::weak_ptr<fibonacci_heap> fh; // the Fibonacci heap this node is in
 		~internal_structure() {
 			data->structure = nullptr;
 			// cut loops inside child's sibling list so that std::shared_ptr can
@@ -80,7 +81,7 @@ class fibonacci_heap {
 	 *
 	 * @return pointer to the node of the duplicated tree
 	 */
-	static std::shared_ptr<internal_structure> duplicate_nodes(std::shared_ptr<internal_structure> root,std::shared_ptr<internal_structure> head,std::shared_ptr<internal_structure> newhead) {
+	static std::shared_ptr<internal_structure> duplicate_nodes(std::weak_ptr<fibonacci_heap> fh, std::shared_ptr<const internal_structure> root,std::shared_ptr<const internal_structure> head,std::shared_ptr<internal_structure> newhead) {
 		if(root==head) return nullptr;
 		std::shared_ptr<internal_structure> newroot = std::make_shared<internal_structure>(*root);
 		if(head==nullptr) {
@@ -91,21 +92,23 @@ class fibonacci_heap {
 		std::shared_ptr<internal_data> newroot_data = std::make_shared<internal_data>(root->data);
 		newroot_data->structure = newroot;
 		newroot->data = newroot_data;
+		// setup new fh
+		newroot->fh = fh;
 		// setup new right_sibling
-		newroot->right_sibling = duplicate_nodes(root->right_sibling, head, newhead);
+		newroot->right_sibling = duplicate_nodes(fh,root->right_sibling, head, newhead);
 		if(newroot->right_sibling==nullptr)
 			newroot->right_sibling = newhead;
 		// setup new left_sibling
 		newroot->right_sibling->left_sibling = newroot;
 		// setup new child
-		newroot->child = duplicate_nodes(root->child, nullptr, nullptr);
+		newroot->child = duplicate_nodes(fh,root->child, nullptr, nullptr);
 		// setup new parent
 		newroot->parent = nullptr;
 		if(newroot->child) newroot->child->parent = newroot;
 	}
 
 	std::shared_ptr<internal_structure> min;
-	size_t _size;
+	size_t _size = 0;
 
 public:
 
@@ -131,7 +134,7 @@ public:
 	 *
 	 * @param old the Fibonacci heap to be copied
 	 */
-	fibonacci_heap(const fibonacci_heap &old):_size(old._size),min(duplicate_nodes(old.min,nullptr,nullptr)) {}
+	fibonacci_heap(const fibonacci_heap &old):_size(old._size),min(duplicate_nodes(*this,old.min,nullptr,nullptr)) {}
 
 	~fibonacci_heap() {
 		// cut loops inside the forest list so that std::shared_ptr can
@@ -159,7 +162,7 @@ public:
 		}
 		// make a copy of old
 		_size = old._size;
-		min = duplicate_nodes(old.min, nullptr, nullptr);
+		min = duplicate_nodes(*this,old.min, nullptr, nullptr);
 		return *this;
 	}
 
@@ -179,7 +182,7 @@ public:
 		 * This is a private constructor, so the users are not allowed to create a node object.
 		 * @param internal pointer to internal node
 		 */
-		node(internal_data *internal):internal(internal){}
+		node(std::shared_ptr<internal_structure> internal):internal(internal->data){}
 
 	public:
 
@@ -232,7 +235,7 @@ public:
 	/** \brief Return the top element.
 	 * @return the node object on the top
 	 */
-	node top() const;
+	node top() const { return node(min); }
 
 	/** \brief Meld another Fibonacci heap to this Fibonacci heap.
 	 * @param heap the Fibonacci heap to be melded

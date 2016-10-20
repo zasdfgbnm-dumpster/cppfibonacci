@@ -51,13 +51,15 @@ public:
 		 * @return number of elements inside the doubly linked list checked starting at from
 		 * this point including the parameter "node" itself
 		 */
-		static int _data_structure_consistency_check(shared_ptr<sn_t> node, shared_ptr<sn_t> parent, shared_ptr<sn_t> head) {
+		static int _data_structure_consistency_check(const fh_t &fh,shared_ptr<sn_t> node, shared_ptr<sn_t> parent, shared_ptr<sn_t> head) {
 			// if sibling check done
 			if (node==head) return 0;
 			// if this is the beginning of sibling check
 			if (head==nullptr) head = node;
 			// check min-tree property
 			if(parent) EXPECT_TRUE(Compare()(parent->data->key,node->data->key));
+			// check fh pointer
+			EXPECT_EQ(node->fh,&fh);
 			// check parent and sibling pointers
 			EXPECT_EQ(node->parent,parent);
 			EXPECT_EQ(node->left_sibling->right_sibling,node);
@@ -65,10 +67,10 @@ public:
 			// check structure and data pointers
 			EXPECT_EQ(node->data->structure,node);
 			// recursively run test on child and check degree
-			size_t calculated_degree = _data_structure_consistency_check(node->child, node, nullptr);
+			size_t calculated_degree = _data_structure_consistency_check(fh,node->child, node, nullptr);
 			EXPECT_EQ(node->degree,calculated_degree);
 			// recursively run test on siblings
-			return _data_structure_consistency_check(node->right_sibling, parent, head)+1;
+			return _data_structure_consistency_check(fh,node->right_sibling, parent, head)+1;
 		}
 
 	public:
@@ -133,6 +135,11 @@ public:
 			fh_t fh3 = fh;
 			fh_t fh4;
 			fh4 = fh;
+			// check data structure consistency
+			data_structure_consistency_check(fh);
+			data_structure_consistency_check(fh2);
+			data_structure_consistency_check(fh3);
+			data_structure_consistency_check(fh4);
 		}
 
 		/** \brief expect that this fibonacci_heap must be a binomial heap
