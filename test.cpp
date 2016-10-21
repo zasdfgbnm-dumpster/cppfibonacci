@@ -16,14 +16,14 @@ class fibonacci_test {
 
 public:
 
-	/** \brief the class containing functions to test fibonacci_heap
+	/** \brief the class containing functions for white box test on fibonacci_heap
 	 *
 	 * @param K the type for keys
 	 * @param T the type for data
 	 * @param Compare the class that define the order of keys, with default value the "<".
 	 */
 	template <typename K, typename T, typename Compare=std::less<K>>
-	class fibonacci_test_basic {
+	class whitebox {
 	public:
 
 		// useful types
@@ -35,42 +35,40 @@ public:
 
 		/* This class contains only static methods, therefore creating an object of
 		 * this class is not allowed */
-		fibonacci_test_basic();
+		whitebox();
 
-		/** \brief recursively run consistency check on each internal_structure node
+		/** \brief recursively run consistency test on each internal_structure node
 		 *
-		 * @param node the node to be checked
+		 * @param node the node to be tested
 		 *
 		 * @param parent the value of parent pointer that this node is supposed to have
 		 *
 		 * @param head used to denote what phase this function is doing. If head==nullptr,
 		 * then this function has just started at a doubly linked list; if head!=nullptr,
-		 * then this function is checking inside the doubly linked list and head is the first
+		 * then this function is testing inside the doubly linked list and head is the first
 		 * element of the doubly linked list.
 		 *
-		 * @return number of elements inside the doubly linked list checked starting at from
+		 * @return number of elements inside the doubly linked list tested starting at from
 		 * this point including the parameter "node" itself
 		 */
-		static int _data_structure_consistency_check(const fh_t &fh,shared_ptr<sn_t> node, shared_ptr<sn_t> parent, shared_ptr<sn_t> head) {
-			// if sibling check done
+		static int _data_structure_consistency_test(shared_ptr<sn_t> node, shared_ptr<sn_t> parent, shared_ptr<sn_t> head) {
+			// if sibling test done
 			if (node==head) return 0;
-			// if this is the beginning of sibling check
+			// if this is the beginning of sibling test
 			if (head==nullptr) head = node;
-			// check min-tree property
+			// test min-tree property
 			if(parent) EXPECT_TRUE(Compare()(parent->data->key,node->data->key));
-			// check fh pointer
-			EXPECT_EQ(node->fh,&fh);
-			// check parent and sibling pointers
+			// test parent and sibling pointers
 			EXPECT_EQ(node->parent,parent);
 			EXPECT_EQ(node->left_sibling->right_sibling,node);
 			EXPECT_EQ(node->right_sibling->left_sibling,node);
-			// check structure and data pointers
+			// test structure and data pointers
 			EXPECT_EQ(node->data->structure,node);
-			// recursively run test on child and check degree
-			size_t calculated_degree = _data_structure_consistency_check(fh,node->child, node, nullptr);
+			// recursively run test on child and test degree
+			size_t calculated_degree = _data_structure_consistency_test(node->child, node, nullptr);
 			EXPECT_EQ(node->degree,calculated_degree);
 			// recursively run test on siblings
-			return _data_structure_consistency_check(fh,node->right_sibling, parent, head)+1;
+			return _data_structure_consistency_test(node->right_sibling, parent, head)+1;
 		}
 
 		/** \brief run binomial property test on a tree rooted at root
@@ -97,26 +95,120 @@ public:
 				EXPECT_TRUE(i);
 		}
 
-	public:
-
-		/** \brief check the consistency of the forest of min trees maintained inside fibonacci_heap
-		*
-		* The following things are checked:
-		* * parent pointer
-		* * sibling pointers
-		* * degrees
-		* * data and structure pointers
-		* * min-tree property
-		*/
-		static void data_structure_consistency_check(const fh_t &fh) {
-			test_structure_node(fh.min,nullptr,nullptr);
-			// check if the min pointer really point to the main
+		/** \brief test if the min pointer really point to the min */
+		static void test_min_ptr(const fh_t &fh) {
 			for(shared_ptr<sn_t> p=fh.min->right_sibling; p!=fh.min; p=p->right_sibling) {
 				EXPECT_LE(fh.min->data->key,p->data->key);
 			}
 		}
 
+		/** \brief count nodes in Fibonacci heap */
+		static size_t count_nodes(shared_ptr<sn_t> root) {
+			if(root==nullptr) return 0;
+			size_t sum = 0;
+			shared_ptr<sn_t> p = root;
+			do {
+				sum += 1 + count_nodes(p->child);
+				p = p->right_sibling;
+			} while(p!=root);
+			return sum;
+		}
+
+		/** \brief test if element is in Fibonacci heap */
+		static void element_in(shared_ptr<sn_t> e, const fh_t &fh) {
+			while(e->parent)
+				e = e->parent;
+			bool found = false;
+			shared_ptr<sn_t> p = fh.min;
+			do {
+				if(p==e) {
+					found = true;
+					break;
+				}
+				p = p->right_sibling;
+			} while(p!=fh.min);
+			EXPECT_TRUE(found);
+		}
+
+	public:
+
+		/** \brief test the consistency of the forest of min trees maintained inside fibonacci_heap
+		*
+		* The following things are tested:
+		* 1 parent pointer
+		* 2 sibling pointers
+		* 3 degrees
+		* 4 data and structure pointers
+		* 5 min-tree property
+		* 6 min pointer of Fibonacci heap
+		* 7 _size
+		* 8 max_degree
+		*/
+		static void data_structure_consistency_test(const fh_t &fh) {
+			// test for 1-5
+			_data_structure_consistency_test(fh.min,nullptr,nullptr);
+			// test for 6
+			test_min_ptr(fh);
+			// test for 7
+			EXPECT_EQ(fh._size,count_nodes(fh.min));
+			// test for 8
+			size_t max_deg = fh.max_degree();
+			shared_ptr<sn_t> p = fh.min;
+			do {
+				ASSERT_LE(p->degree,max_deg);
+				p = p->right_sibling;
+			} while(p!=fh.min);
+		}
+
+		/** \brief test whether the fibonacci_heap object is copied/moved correctly
+		 *
+		 * The following things are tested:
+		 * 1. Are the new data structure consistent?
+		 * 2. Is the property that there is no overlap between old and new Fibonacci heap satisfied?
+		 * 3. Are the tree structures kept the same?
+		 */
+		static void copy_move_test(const fh_t &fh) {
+			fh_t fh2(fh); // copy constructor
+			fh_t fh3 = fh; // copy constructor
+			fh_t fh4;
+			fh4 = fh; // assignment
+			fh_t fh5 = fh_t(fh2); // copy constructor, then move constructor
+			fh_t fh6;
+			fh6 = fh_t(fh2); // copy constructor, then assignment
+			// test for 1
+			data_structure_consistency_test(fh);
+			data_structure_consistency_test(fh2);
+			data_structure_consistency_test(fh3);
+			data_structure_consistency_test(fh4);
+			data_structure_consistency_test(fh5);
+			data_structure_consistency_test(fh6);
+			// test for 2
+			// TODO
+			// test for 3
+			// TODO
+		}
+
+		/** \brief expect that this fibonacci_heap must be a binomial heap
+		 *
+		 * In the case that only insert, meld and remove min is performed,
+		 * a Fibonacci heap should be exactly the same as a binomial heap.
+		 * This method is designed to be called in this case to expect that
+		 * the Fibonacci heap is actually a binomial heap.
+		 */
+		static void expect_binomial(const fh_t &fh) {
+			shared_ptr<sn_t> p=fh.min;
+			do {
+				_expect_binomial(p);
+				p=p->right_sibling;
+			} while(p!=fh.min);
+		}
+
 		/** \brief test whether the cleanup procedure of a Fibonacci heap works well during descruction
+		 *
+		 * The following things are tested:
+		 * 1. Are all the structure nodes destroyed?
+		 * 2. Are all the data nodes without external reference destroyed?
+		 * 3. Are the reference counts of all the data nodes with external reference decrease by one?
 		 *
 		 * @param fhptr the pointer pointing to the Fibonacci heap to be destroyed
 		 */
@@ -140,50 +232,19 @@ public:
 			// destroy
 			ASSERT_TRUE(fhptr.unique());
 			fhptr.reset();
-			// test if things are cleaned up well
+			// test for 1
 			for(weak_ptr<sn_t> &i : sn_clean_list) {
 				EXPECT_TRUE(i.expired());
 			}
+			// test for 2
 			for(weak_ptr<dn_t> &i : dn_clean_list) {
 				EXPECT_TRUE(i.expired());
 			}
+			// test for 3
 			for(tuple<weak_ptr<dn_t>,size_t> &i : dn_keep_list) {
 				EXPECT_EQ(get<0>(i).use_count(),get<1>(i)-1);
 				EXPECT_EQ(get<0>(i)->structure,nullptr);
 			}
-		}
-
-		/** \brief test whether the fibonacci_heap object is copied/moved correctly */
-		static void copy_move_test(const fh_t &fh) {
-			fh_t fh2(fh); // copy constructor
-			fh_t fh3 = fh; // copy constructor
-			fh_t fh4;
-			fh4 = fh; // assignment
-			fh_t fh5 = fh_t(fh2); // copy constructor, then move constructor
-			fh_t fh6;
-			fh6 = fh_t(fh2); // copy constructor, then assignment
-			// check data structure consistency
-			data_structure_consistency_check(fh);
-			data_structure_consistency_check(fh2);
-			data_structure_consistency_check(fh3);
-			data_structure_consistency_check(fh4);
-			data_structure_consistency_check(fh5);
-			data_structure_consistency_check(fh6);
-		}
-
-		/** \brief expect that this fibonacci_heap must be a binomial heap
-		 *
-		 * In the case that only insert, meld and remove min is performed,
-		 * a Fibonacci heap should be exactly the same as a binomial heap.
-		 * This method is designed to be called in this case to expect that
-		 * the Fibonacci heap is actually a binomial heap.
-		 */
-		static void expect_binomial(const fh_t &fh) {
-			shared_ptr<sn_t> p=fh.min;
-			do {
-				_expect_binomial(p);
-				p=p->right_sibling;
-			} while(p!=fh.min);
 		}
 	};
 };
