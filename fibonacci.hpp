@@ -142,35 +142,45 @@ private:
 		return datanode->structure;
 	}
 
-	/** \brief Remove the element specified by the node object.
-	 *
-	 * It is the user's responsibility to make sure that the given node is
-	 * actually in this Fibonacci heap. Trying to remove a node not in this
-	 * Fibonacci heap will have undefined behavior.
-	 *
-	 * @param n the node to be removed
-	 * @return the removed node object
-	 */
+	/** \brief remove the subtree rooted at p */
+	void remove_tree(std::shared_ptr<internal_structure> p) {
+		if(p->parent) {
+			p->parent->degree--;
+			if(p->parent->degree==0)
+				p->parent->child = nullptr;
+			else if(p->parent->child==p)
+				p->parent->child = p->right_sibling;
+		}
+		std::swap(p->left_sibling->right_sibling, p->right_sibling);
+		std::swap(p->right_sibling->left_sibling, p->left_sibling);
+	}
+
+	/** \brief cascading cut */
+	void cascading_cut(std::shared_ptr<internal_structure> p) {
+		if(p==nullptr) return;
+		std::shared_ptr<internal_structure> oldparent = p->parent;
+		if(oldparent){
+			if(p->childcut){
+				remove_tree(p);
+				meld(p);
+				cascading_cut(oldparent);
+			} else
+				p->childcut = true;
+		}
+	}
+
+	/** \brief Remove the element specified by the parameter.*/
 	void remove(std::shared_ptr<internal_structure> p) {
 		if(p==min)
 			return remove();
 		_size--;
 		// remove n from tree
+		remove_tree(p);
 		p->data->structure = nullptr;
-		p->left_sibling->right_sibling = p->right_sibling;
-		p->right_sibling->left_sibling = p->left_sibling;
-		if(p->parent && p->parent->child==p)
-			p->parent->child = p->right_sibling;
 		// insert n's child back
 		meld(p->child);
 		// cascading cut
-		if(p->parent->parent){
-			if(p->parent->childcut){
-				remove(p->parent);
-				insert(p->parent->data);
-			} else
-				p->parent->childcut = true;
-		}
+		cascading_cut(p->parent);
 	}
 
 	std::shared_ptr<internal_structure> min;
@@ -327,7 +337,22 @@ public:
 	 * @param n the node object holding the key and data of the element to be inserted
 	 * @param new_key the new key of the node
 	 */
-	void decrease_key(node n,K new_key);
+	void decrease_key(node n,K new_key) {
+		if(Compare()(n->key(),new_key)) throw "increase_key is not supported";
+		std::shared_ptr<internal_structure> p = n.internal->structure->parent;
+		if(p) {
+			if(Compare()(new_key,p->data->key)) {
+				remove_tree(n.internal->structure);
+				meld(n.internal->structure);
+				cascading_cut(p);
+			} else
+				n.internal->key = new_key;
+		} else {
+			n.internal->key = new_key;
+			if(Compare()(new_key,min->data->key))
+				min = n.internal->structure;
+		}
+	}
 
 	/** \brief Remove the top element.
 	 * @return the removed node object
