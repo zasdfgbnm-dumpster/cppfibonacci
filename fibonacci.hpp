@@ -67,7 +67,7 @@ class fibonacci_heap {
 		}
 	};
 
-	/** \brief recursively duplicate nodes and create a new tree, including structure node and data node
+	/** \brief recursively duplicate nodes and create a new forest, including structure node and data node
 	 *
 	 * @param root the root node of the tree to be duplicated
 	 *
@@ -107,6 +107,25 @@ class fibonacci_heap {
 		if(newroot->child) newroot->child->parent = newroot;
 	}
 
+	/** \brief fix the fh pointer of all nodes in the forest rooted
+	 *
+	 * @param fhptr the desired pointer to Fibonacci heap
+	 *
+	 * @param root the root node of a tree in the forest to be fixed
+	 *
+	 * @param head used to denote what phase this function is doing. If head==nullptr,
+	 * then this function has just started at a doubly linked list; if head!=nullptr,
+	 * then this function is checking inside the doubly linked list and head is the first
+	 * element of the doubly linked list.
+	 */
+	static void fix_fh(std::weak_ptr<fibonacci_heap> fhptr, std::shared_ptr<internal_structure> root, std::shared_ptr<internal_structure> head) {
+		if(root==head) return;
+		if(head==nullptr) head = root;
+		root->fh = fhptr;
+		fix_fh(fhptr,root->right_sibling,head);
+		fix_fh(fhptr,root->child,nullptr);
+	}
+
 	std::shared_ptr<internal_structure> min;
 	size_t _size = 0;
 
@@ -129,12 +148,24 @@ public:
 	 * Whenever the user tries to make a copy of a fibonacci_heap object, a deep
 	 * copy will be made.
 	 *
-	 * Also note that the node object at old Fibonacci heap can not be used at
+	 * Also note that the node objects at old Fibonacci heap can not be used at
 	 * copied Fibonacci heap.
 	 *
 	 * @param old the Fibonacci heap to be copied
 	 */
 	fibonacci_heap(const fibonacci_heap &old):_size(old._size),min(duplicate_nodes(*this,old.min,nullptr,nullptr)) {}
+
+	/** \brief the move constructor.
+	 *
+	 * Move all the data from old Fibonacci heap to new one. The node objects at
+	 * old Fibonacci heap can be used at new Fibonacci heap.
+	 *
+	 * @param old the Fibonacci heap to move data from
+	 */
+	fibonacci_heap(fibonacci_heap &&old):_size(old._size),min(old.min) {
+		old.min = nullptr;
+		fix_fh(*this,min);
+	}
 
 	~fibonacci_heap() {
 		// cut loops inside the forest list so that std::shared_ptr can
@@ -148,7 +179,7 @@ public:
 	 * Whenever the user tries to a fibonacci_heap object to another object, a deep
 	 * copy will be made.
 	 *
-	 * Also note that the node object at old Fibonacci heap can not be used at
+	 * Also note that the node objects at old Fibonacci heap can not be used at
 	 * the new Fibonacci heap.
 	 *
 	 * @param old the Fibonacci heap to be copied
@@ -156,6 +187,7 @@ public:
 	 * @return reference to this object
 	 */
 	fibonacci_heap& operator = (const fibonacci_heap &old) {
+		if (this==&old) return *this;
 		// clean up the current Fibonacci heap
 		if(min!=nullptr) {
 			~fibonacci_heap();
@@ -163,6 +195,27 @@ public:
 		// make a copy of old
 		_size = old._size;
 		min = duplicate_nodes(*this,old.min, nullptr, nullptr);
+		return *this;
+	}
+
+	/** \brief the move assignment operator
+	 *
+	 * Destroy the current object and move the old object here. The node objects
+	 * at old Fibonacci heap can be used at the new Fibonacci heap.
+	 *
+	 * @param old the Fibonacci heap moved data from
+	 *
+	 * @return reference to this object
+	 */
+	fibonacci_heap& operator = (fibonacci_heap &&old) {
+		// clean up the current Fibonacci heap
+		~fibonacci_heap();
+		// move data from old to new
+		_size = old._size;
+		min = old.min;
+		old.min = nullptr;
+		// fix fh pointers
+		fix_fh(*this,min);
 		return *this;
 	}
 
