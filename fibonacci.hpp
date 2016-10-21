@@ -189,9 +189,7 @@ public:
 	fibonacci_heap& operator = (const fibonacci_heap &old) {
 		if (this==&old) return *this;
 		// clean up the current Fibonacci heap
-		if(min!=nullptr) {
-			~fibonacci_heap();
-		}
+		~fibonacci_heap();
 		// make a copy of old
 		_size = old._size;
 		min = duplicate_nodes(*this,old.min, nullptr, nullptr);

@@ -153,17 +153,22 @@ public:
 			}
 		}
 
-		/** \brief test whether the fibonacci_heap object is copied correctly */
-		static void copy_test(const fh_t &fh) {
-			fh_t fh2(fh);
-			fh_t fh3 = fh;
+		/** \brief test whether the fibonacci_heap object is copied/moved correctly */
+		static void copy_move_test(const fh_t &fh) {
+			fh_t fh2(fh); // copy constructor
+			fh_t fh3 = fh; // copy constructor
 			fh_t fh4;
-			fh4 = fh;
+			fh4 = fh; // copy assignment
+			fh_t fh5 = fh_t(fh2); // copy constructor, then move constructor
+			fh_t fh6;
+			fh6 = fh_t(fh2); // copy constructor, then move assignment
 			// check data structure consistency
 			data_structure_consistency_check(fh);
 			data_structure_consistency_check(fh2);
 			data_structure_consistency_check(fh3);
 			data_structure_consistency_check(fh4);
+			data_structure_consistency_check(fh5);
+			data_structure_consistency_check(fh6);
 		}
 
 		/** \brief expect that this fibonacci_heap must be a binomial heap
