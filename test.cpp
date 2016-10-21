@@ -37,7 +37,7 @@ public:
 		 * this class is not allowed */
 		fibonacci_test_basic();
 
-		/** \brief recursively run test on each internal_structure node
+		/** \brief recursively run consistency check on each internal_structure node
 		 *
 		 * @param node the node to be checked
 		 *
@@ -71,6 +71,30 @@ public:
 			EXPECT_EQ(node->degree,calculated_degree);
 			// recursively run test on siblings
 			return _data_structure_consistency_check(fh,node->right_sibling, parent, head)+1;
+		}
+
+		/** \brief run binomial property test on a tree rooted at root
+		 *
+		 * @param root the root of the tree to be tested
+		 */
+		static void _expect_binomial(shared_ptr<sn_t> root) {
+			size_t degree = root->degree;
+			if(degree == 0) {
+				EXPECT_EQ(root->child,nullptr);
+				return;
+			}
+			bool children_degrees[degree];
+			for(bool &i:children_degrees)
+				i = false;
+			shared_ptr<sn_t> p=root->child;
+			do {
+				_expect_binomial(p);
+				EXPECT_FALSE(children_degrees[p->degree]);
+				children_degrees[p->degree] = true;
+				p=p->right_sibling;
+			} while(p!=root->child);
+			for(bool i:children_degrees)
+				EXPECT_TRUE(i);
 		}
 
 	public:
@@ -149,6 +173,12 @@ public:
 		 * This method is designed to be called in this case to expect that
 		 * the Fibonacci heap is actually a binomial heap.
 		 */
-		static void expect_binomial(const fh_t &fh);
+		static void expect_binomial(const fh_t &fh) {
+			shared_ptr<sn_t> p=fh.min->right_sibling;
+			do {
+				_expect_binomial(p);
+				p=p->right_sibling;
+			} while(p!=fh.min);
+		}
 	};
 };
