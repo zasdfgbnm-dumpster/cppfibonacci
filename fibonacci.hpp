@@ -184,6 +184,11 @@ private:
 		cascading_cut(p->parent);
 	}
 
+	/** \brief calculate the max degree of nodes */
+	size_t max_degree() {
+		return std::floor(std::log(_size)/std::log((std::sqrt(5.0)+1.0)/2.0));
+	}
+
 	std::shared_ptr<internal_structure> min;
 	size_t _size = 0;
 
@@ -368,11 +373,12 @@ public:
 		min == nullptr;
 
 		// merge trees of same degrees
-		int max_degree = std::floor(std::log(_size)/std::log((std::sqrt(5.0)+1.0)/2.0));
-		std::shared_ptr<internal_structure> trees[max_degree+1];
+		std::shared_ptr<internal_structure> trees[max_degree()+1];
 		std::shared_ptr<internal_structure> p = min->child;
 		while(p!=min) {
 			std::shared_ptr<internal_structure> q = p;
+
+			// move p to next root
 			p = p->right_sibling;
 			if(p==min->child)
 				p = min->right_sibling;
@@ -382,14 +388,13 @@ public:
 				std::shared_ptr<internal_structure> smaller = q_is_smaller?q:trees[q->degree];
 				std::shared_ptr<internal_structure> larger = q_is_smaller?trees[q->degree]:q;
 				trees[q->degree] = nullptr;
+				larger->childcut = false;
+				larger->parent = smaller;
+				smaller->degree++;
 				if(smaller->child==nullptr) {
 					smaller->child = larger;
-					larger->parent = smaller;
-					smaller->degree = 1;
 					larger->right_sibling = larger->left_sibling = larger;
 				} else {
-					larger->parent = smaller;
-					smaller->degree++;
 					larger->right_sibling = smaller->child->right_sibling;
 					smaller->child->right_sibling->left_sibling = larger;
 					larger->left_sibling = smaller->child;
