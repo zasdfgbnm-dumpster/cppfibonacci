@@ -51,24 +51,29 @@ public:
 		 * @return number of elements inside the doubly linked list tested starting at from
 		 * this point including the parameter "node" itself
 		 */
-		static int _data_structure_consistency_test(shared_ptr<sn_t> node, shared_ptr<sn_t> parent, shared_ptr<sn_t> head) {
+		static void _data_structure_consistency_test(shared_ptr<sn_t> node, shared_ptr<sn_t> parent, shared_ptr<sn_t> head, size_t &degree) {
 			// if sibling test done
-			if (node==head) return 0;
+			if (node==head) {
+				degree = 0;
+				return;
+			}
 			// if this is the beginning of sibling test
 			if (head==nullptr) head = node;
 			// test min-tree property
-			if(parent) EXPECT_TRUE(Compare()(parent->data->key,node->data->key));
+			if(parent) ASSERT_TRUE(Compare()(parent->data->key,node->data->key));
 			// test parent and sibling pointers
-			EXPECT_EQ(node->parent,parent);
-			EXPECT_EQ(node->left_sibling->right_sibling,node);
-			EXPECT_EQ(node->right_sibling->left_sibling,node);
+			ASSERT_EQ(node->parent,parent);
+			ASSERT_EQ(node->left_sibling->right_sibling,node);
+			ASSERT_EQ(node->right_sibling->left_sibling,node);
 			// test structure and data pointers
-			EXPECT_EQ(node->data->structure,node);
+			ASSERT_EQ(node->data->structure,node);
 			// recursively run test on child and test degree
-			size_t calculated_degree = _data_structure_consistency_test(node->child, node, nullptr);
-			EXPECT_EQ(node->degree,calculated_degree);
+			size_t calculated_degree;
+			_data_structure_consistency_test(node->child, node, nullptr,calculated_degree);
+			ASSERT_EQ(node->degree,calculated_degree);
 			// recursively run test on siblings
-			return _data_structure_consistency_test(node->right_sibling, parent, head)+1;
+			_data_structure_consistency_test(node->right_sibling, parent, head,degree);
+			degree++;
 		}
 
 		/** \brief run binomial property test on a tree rooted at root
@@ -78,7 +83,7 @@ public:
 		static void _expect_binomial(shared_ptr<sn_t> root) {
 			size_t degree = root->degree;
 			if(degree == 0) {
-				EXPECT_EQ(root->child,nullptr);
+				ASSERT_EQ(root->child,nullptr);
 				return;
 			}
 			bool children_degrees[degree];
@@ -87,18 +92,18 @@ public:
 			shared_ptr<sn_t> p=root->child;
 			do {
 				_expect_binomial(p);
-				EXPECT_FALSE(children_degrees[p->degree]);
+				ASSERT_FALSE(children_degrees[p->degree]);
 				children_degrees[p->degree] = true;
 				p=p->right_sibling;
 			} while(p!=root->child);
 			for(bool i:children_degrees)
-				EXPECT_TRUE(i);
+				ASSERT_TRUE(i);
 		}
 
 		/** \brief test if the min pointer really point to the min */
 		static void test_min_ptr(const fh_t &fh) {
 			for(shared_ptr<sn_t> p=fh.min->right_sibling; p!=fh.min; p=p->right_sibling) {
-				EXPECT_LE(fh.min->data->key,p->data->key);
+				ASSERT_LE(fh.min->data->key,p->data->key);
 			}
 		}
 
@@ -127,7 +132,45 @@ public:
 				}
 				p = p->right_sibling;
 			} while(p!=fh.min);
-			EXPECT_TRUE(found);
+			ASSERT_TRUE(found);
+		}
+
+		/** \brief test if all the forests given have the same structure */
+		static void expect_same_tree_structure(vector<shared_ptr<sn_t>> nodes) {
+			// if pointers are null, return
+			bool allnull = true;
+			bool anynull = false;
+			for(shared_ptr<sn_t> &i:nodes) {
+				allnull = allnull && (i==nullptr);
+				anynull = anynull || (i==nullptr);
+			}
+			ASSERT_EQ(allnull,anynull);
+			if(anynull) return;
+			// traverse sibling list
+			shared_ptr<sn_t> ps[nodes.size()] = nodes();
+			bool done = false;
+			do {
+				// check if keys and  values of different p are the same
+				for(shared_ptr<sn_t> &p1:ps){
+					for(shared_ptr<sn_t> &p2:ps){
+						ASSERT_EQ(p1->data->key,p2->data->key);
+						ASSERT_EQ(p1->data->data,p2->data->data);
+					}
+					expect_same_tree_structure(p1);
+				}
+				// update ps
+				for(shared_ptr<sn_t> &p:ps)
+					p = p->right_sibling;
+				// see if we are done with this sibling list
+				bool alldone = true;
+				bool anydone = false;
+				for(int i=0;i<nodes.size();i++) {
+					alldone = alldone && (ps[i]==nodes[i]);
+					anydone = anydone || (ps[i]==nodes[i]);
+				}
+				ASSERT_EQ(anydone,alldone);
+				done = anydone;
+			} while(!done);
 		}
 
 	public:
@@ -146,11 +189,12 @@ public:
 		*/
 		static void data_structure_consistency_test(const fh_t &fh) {
 			// test for 1-5
-			_data_structure_consistency_test(fh.min,nullptr,nullptr);
+			size_t unused;
+			_data_structure_consistency_test(fh.min,nullptr,nullptr,unused);
 			// test for 6
 			test_min_ptr(fh);
 			// test for 7
-			EXPECT_EQ(fh._size,count_nodes(fh.min));
+			ASSERT_EQ(fh._size,count_nodes(fh.min));
 			// test for 8
 			size_t max_deg = fh.max_degree();
 			shared_ptr<sn_t> p = fh.min;
@@ -172,9 +216,9 @@ public:
 			fh_t fh3 = fh; // copy constructor
 			fh_t fh4;
 			fh4 = fh; // assignment
-			fh_t fh5 = fh_t(fh2); // copy constructor, then move constructor
+			fh_t fh5 = fh_t(fh); // copy constructor, then move constructor
 			fh_t fh6;
-			fh6 = fh_t(fh2); // copy constructor, then assignment
+			fh6 = fh_t(fh); // copy constructor, then assignment
 			// test for 1
 			data_structure_consistency_test(fh);
 			data_structure_consistency_test(fh2);
@@ -183,9 +227,13 @@ public:
 			data_structure_consistency_test(fh5);
 			data_structure_consistency_test(fh6);
 			// test for 2
-			// TODO
+			ASSERT_NE(fh.min, fh2.min);
+			ASSERT_NE(fh.min, fh3.min);
+			ASSERT_NE(fh.min, fh4.min);
+			ASSERT_NE(fh.min, fh5.min);
+			ASSERT_NE(fh.min, fh6.min);
 			// test for 3
-			// TODO
+			expect_same_tree_structure({fh.min,fh2.min,fh3.min,fh4.min,fh5.min,fh6.min});
 		}
 
 		/** \brief expect that this fibonacci_heap must be a binomial heap
@@ -234,16 +282,16 @@ public:
 			fhptr.reset();
 			// test for 1
 			for(weak_ptr<sn_t> &i : sn_clean_list) {
-				EXPECT_TRUE(i.expired());
+				ASSERT_TRUE(i.expired());
 			}
 			// test for 2
 			for(weak_ptr<dn_t> &i : dn_clean_list) {
-				EXPECT_TRUE(i.expired());
+				ASSERT_TRUE(i.expired());
 			}
 			// test for 3
 			for(tuple<weak_ptr<dn_t>,size_t> &i : dn_keep_list) {
-				EXPECT_EQ(get<0>(i).use_count(),get<1>(i)-1);
-				EXPECT_EQ(get<0>(i)->structure,nullptr);
+				ASSERT_EQ(get<0>(i).use_count(),get<1>(i)-1);
+				ASSERT_EQ(get<0>(i)->structure,nullptr);
 			}
 		}
 	};
