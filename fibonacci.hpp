@@ -12,6 +12,7 @@
 #include <tuple>
 #include <initializer_list>
 #include <memory>
+#include <cmath>
 
 #ifdef FIBONACCI_HEAP_TEST_FRIEND
 class FIBONACCI_HEAP_TEST_FRIEND;
@@ -311,7 +312,10 @@ public:
 	/** \brief Return the top element.
 	 * @return the node object on the top
 	 */
-	node top() const { return node(min); }
+	node top() const {
+		if(_size==0) throw "this Fibonacci heap is empty";
+		return node(min);
+	}
 
 	/** \brief Meld another Fibonacci heap to this Fibonacci heap.
 	 *
@@ -339,6 +343,7 @@ public:
 	 */
 	void decrease_key(node n,K new_key) {
 		if(Compare()(n->key(),new_key)) throw "increase_key is not supported";
+		if(n.internal->structure==nullptr) throw "the given node is not in this Fibonacci heap";
 		std::shared_ptr<internal_structure> p = n.internal->structure->parent;
 		if(p) {
 			if(Compare()(new_key,p->data->key)) {
@@ -358,8 +363,63 @@ public:
 	 * @return the removed node object
 	 */
 	node remove() {
+		if(_size==0) throw "no element to remove";
+		std::shared_ptr<internal_structure> oldmin = min;
+		min == nullptr;
+
+		// merge trees of same degrees
+		int max_degree = std::floor(std::log(_size)/std::log((std::sqrt(5.0)+1.0)/2.0));
+		std::shared_ptr<internal_structure> trees[max_degree+1];
+		std::shared_ptr<internal_structure> p = min->child;
+		while(p!=min) {
+			std::shared_ptr<internal_structure> q = p;
+			p = p->right_sibling;
+			if(p==min->child)
+				p = min->right_sibling;
+
+			while(trees[q->degree]!=nullptr) {
+				bool q_is_smaller = Compare()(q,trees[q->degree]);
+				std::shared_ptr<internal_structure> smaller = q_is_smaller?q:trees[q->degree];
+				std::shared_ptr<internal_structure> larger = q_is_smaller?trees[q->degree]:q;
+				trees[q->degree] = nullptr;
+				if(smaller->child==nullptr) {
+					smaller->child = larger;
+					larger->parent = smaller;
+					smaller->degree = 1;
+					larger->right_sibling = larger->left_sibling = larger;
+				} else {
+					larger->parent = smaller;
+					smaller->degree++;
+					larger->right_sibling = smaller->child->right_sibling;
+					smaller->child->right_sibling->left_sibling = larger;
+					larger->left_sibling = smaller->child;
+					smaller->child->right_sibling = larger;
+				}
+				q = smaller;
+			}
+			trees[q->degree] = q;
+		}
+
+		// construct sibling list for roots
+		for(std::shared_ptr<internal_structure> p:trees) {
+			if(p==nullptr) continue;
+			p->parent = nullptr;
+			if(min==nullptr) {
+				min = p;
+				p->right_sibling = p->left_sibling = p;
+			} else {
+				p->right_sibling = min->right_sibling;
+				p->left_sibling = min;
+				min->right_sibling.left_sibling = p;
+				min->right_sibling = p;
+				if(Compare()(p->data->key,min->data->key))
+					min = p;
+			}
+		}
+
 		_size--;
-		//TODO
+		oldmin->data->structure = nullptr;
+		return node(oldmin->data);
 	}
 
 	/** \brief Remove the element specified by the node object.
@@ -372,6 +432,7 @@ public:
 	 * @return the removed node object
 	 */
 	node remove(node n) {
+		if(n.internal->structure==nullptr) throw "the given node is not in this Fibonacci heap";
 		remove(n.internal->structure);
 		return n;
 	}
