@@ -26,6 +26,11 @@ class FIBONACCI_HEAP_TEST_FRIEND;
 template <typename K, typename T, typename Compare=std::less<K>>
 class fibonacci_heap {
 
+public:
+	class node;
+
+private:
+
 	/** To allow user defined test class to access private members of this class,
 	  * simply define the test class name as macro FIBONACCI_HEAP_TEST_FRIEND
 	  */
@@ -40,7 +45,7 @@ class fibonacci_heap {
 	 * to automatically clean up memory without destroying user's pointer to data.
 	 */
 	class internal_structure {
-		bool childcut;
+		bool childcut = false;
 		size_t degree;
 		std::shared_ptr<internal_data> data;
 		std::shared_ptr<internal_structure> right_sibling;
@@ -58,6 +63,8 @@ class fibonacci_heap {
 	/** \brief the interal class used to store data in Fibonacci heap */
 	class internal_data {
 	public:
+		internal_data(K key,const T &data):key(key),data(data) {}
+		internal_data(K key,T &&data):key(key),data(data) {}
 		std::weak_ptr<internal_structure> structure;
 		K key;
 		T data;
@@ -102,6 +109,68 @@ class fibonacci_heap {
 		// setup new parent
 		newroot->parent = nullptr;
 		if(newroot->child) newroot->child->parent = newroot;
+	}
+
+	/** \brief Meld another forest to this Fibonacci heap.
+	 *
+	 * @param node pointer to the any root of the forest
+	 */
+	void meld(std::shared_ptr<internal_structure> node) {
+		// update parent
+		std::shared_ptr<internal_structure> oldhead = node;
+		std::shared_ptr<internal_structure> p = oldhead;
+		do {
+			p->parent = min->parent;
+			if(Compare()(p->data->key,node->data->key))
+				node = p;
+			p=p->right_sibling;
+		} while(p!=oldhead);
+		// merge sibling list
+		std::swap(min->right_sibling,node->right_sibling);
+		std::swap(min->right_sibling->left_sibling,node->right_sibling->left_sibling);
+		if(Compare()(node->data->key,min->data->key))
+			min = node;
+	}
+
+	/** \brief insert a data node */
+	node insert(std::shared_ptr<internal_data> datanode) {
+		_size++;
+		datanode->structure = std::make_shared<internal_structure>();
+		datanode->structure->left_sibling = datanode->structure;
+		datanode->structure->right_sibling = datanode->structure;
+		meld(datanode->structure);
+		return datanode->structure;
+	}
+
+	/** \brief Remove the element specified by the node object.
+	 *
+	 * It is the user's responsibility to make sure that the given node is
+	 * actually in this Fibonacci heap. Trying to remove a node not in this
+	 * Fibonacci heap will have undefined behavior.
+	 *
+	 * @param n the node to be removed
+	 * @return the removed node object
+	 */
+	void remove(std::shared_ptr<internal_structure> p) {
+		if(p==min)
+			return remove();
+		_size--;
+		// remove n from tree
+		p->data->structure = nullptr;
+		p->left_sibling->right_sibling = p->right_sibling;
+		p->right_sibling->left_sibling = p->left_sibling;
+		if(p->parent && p->parent->child==p)
+			p->parent->child = p->right_sibling;
+		// insert n's child back
+		meld(p->child);
+		// cascading cut
+		if(p->parent->parent){
+			if(p->parent->childcut){
+				remove(p->parent);
+				insert(p->parent->data);
+			} else
+				p->parent->childcut = true;
+		}
 	}
 
 	std::shared_ptr<internal_structure> min;
@@ -157,15 +226,17 @@ public:
 	 * @return reference to this object
 	 */
 	fibonacci_heap& operator = (fibonacci_heap old) {
-		std::swap(*this,old);
+		std::swap(this->_size,old->_size);
+		std::swap(this->min,old->min);
 		return *this;
 	}
 
 	/** \brief Reference to nodes in Fibonacci heap.
 	 *
 	 * Objects of node should be returned from methods of fibonacci_heap,
-	 * and will keep valid throughout the whole lifetime of the Fibonacci heap
-	 * no matter what operations the users did.
+	 * and will keep valid throughout the whole lifetime of the Fibonacci heap.
+	 * If the original Fibonacci heap is copied to a new heap, node objects of
+	 * the original Fibonacci heap will not work on the new heap.
 	 */
 	class node {
 
@@ -210,7 +281,7 @@ public:
 	 * @param data the data of the element to be inserted
 	 * @return node object holding the inserted element
 	 */
-	node insert(K key,const T &data);
+	node insert(K key,const T &data) { return insert(internal_data(key, data)); }
 
 	/** \brief Insert an element.
 	 *
@@ -218,7 +289,7 @@ public:
 	 * @param value the data of the element to be inserted
 	 * @return node object holding the inserted element
 	 */
-	node insert(K key,T &&data);
+	node insert(K key,T &&data)  { return insert(internal_data(key, data)); }
 
 	/** \brief Insert an element.
 	 *
@@ -233,27 +304,52 @@ public:
 	node top() const { return node(min); }
 
 	/** \brief Meld another Fibonacci heap to this Fibonacci heap.
-	 * @param heap the Fibonacci heap to be melded
+	 *
+	 * After meld, all the data will be moved to this Fibonacci heap, and the
+	 * parameter "fh" will become empty. After meld, both the node objects of
+	 * this and the node objects of parameter "fh" will work on this.
+	 *
+	 * @param fh the Fibonacci heap to be melded
 	 */
-	void meld(const fibonacci_heap<K,T,Compare> &heap);
+	void meld(fibonacci_heap<K,T,Compare> &fh) {
+		meld(fh.min);
+		fh.min = nullptr;
+		_size += fh._size;
+		fh._size = 0;
+	}
 
 	/** \brief Descrease (or increase if you use greater as Compare) the key of the given node.
 	 *
-	 * @param node the node object holding the key and data of the element to be inserted
+	 * It is the user's responsibility to make sure that the given node is
+	 * actually in this Fibonacci heap. Trying to decrease a key of a node
+	 * not in this Fibonacci heap will have undefined behavior.
+	 *
+	 * @param n the node object holding the key and data of the element to be inserted
 	 * @param new_key the new key of the node
 	 */
-	void decrease_key(node,K new_key);
+	void decrease_key(node n,K new_key);
 
 	/** \brief Remove the top element.
 	 * @return the removed node object
 	 */
-	node remove();
+	node remove() {
+		_size--;
+		//TODO
+	}
 
 	/** \brief Remove the element specified by the node object.
+	 *
+	 * It is the user's responsibility to make sure that the given node is
+	 * actually in this Fibonacci heap. Trying to remove a node not in this
+	 * Fibonacci heap will have undefined behavior.
+	 *
 	 * @param n the node to be removed
 	 * @return the removed node object
 	 */
-	node remove(node n);
+	node remove(node n) {
+		remove(n.internal->structure);
+		return n;
+	}
 };
 
 #endif

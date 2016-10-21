@@ -158,10 +158,10 @@ public:
 			fh_t fh2(fh); // copy constructor
 			fh_t fh3 = fh; // copy constructor
 			fh_t fh4;
-			fh4 = fh; // copy assignment
+			fh4 = fh; // assignment
 			fh_t fh5 = fh_t(fh2); // copy constructor, then move constructor
 			fh_t fh6;
-			fh6 = fh_t(fh2); // copy constructor, then move assignment
+			fh6 = fh_t(fh2); // copy constructor, then assignment
 			// check data structure consistency
 			data_structure_consistency_check(fh);
 			data_structure_consistency_check(fh2);
@@ -179,7 +179,7 @@ public:
 		 * the Fibonacci heap is actually a binomial heap.
 		 */
 		static void expect_binomial(const fh_t &fh) {
-			shared_ptr<sn_t> p=fh.min->right_sibling;
+			shared_ptr<sn_t> p=fh.min;
 			do {
 				_expect_binomial(p);
 				p=p->right_sibling;
