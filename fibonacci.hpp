@@ -6,6 +6,8 @@
  * For API, see fibonacci_heap.
  *
  * For sample code, see @ref example.cpp.
+ *
+ * GitHub address: https://github.com/zasdfgbnm/cppfibonacci
  */
 
 #include <functional>
@@ -13,6 +15,7 @@
 #include <initializer_list>
 #include <memory>
 #include <cmath>
+#include <vector>
 
 #ifdef FIBONACCI_HEAP_TEST_FRIEND
 class FIBONACCI_HEAP_TEST_FRIEND;
@@ -46,6 +49,7 @@ private:
 	 * to automatically clean up memory without destroying user's pointer to data.
 	 */
 	class internal_structure {
+	public:
 		bool childcut = false;
 		size_t degree;
 		std::shared_ptr<internal_data> data;
@@ -54,7 +58,7 @@ private:
 		std::shared_ptr<internal_structure> child;
 		std::weak_ptr<internal_structure> parent;
 		~internal_structure() {
-			data->structure = nullptr;
+			data->structure.reset();
 			// cut loops inside child's sibling list so that std::shared_ptr can
 			// automatically free unneeded memory
 			if(child) child->right_sibling = nullptr;
@@ -66,12 +70,10 @@ private:
 	public:
 		internal_data(K key,const T &data):key(key),data(data) {}
 		internal_data(K key,T &&data):key(key),data(data) {}
+		internal_data(const internal_data &old) = default;
 		std::weak_ptr<internal_structure> structure;
 		K key;
 		T data;
-		~internal_data() {
-			if(!structure.expired()) throw "data node in use, destructing will cause unexpected behavior";
-		}
 	};
 
 	/** \brief recursively duplicate nodes and create a new forest, including structure node and data node
@@ -108,8 +110,9 @@ private:
 		// setup new child
 		newroot->child = duplicate_nodes(root->child, nullptr, nullptr);
 		// setup new parent
-		newroot->parent = nullptr;
+		newroot->parent.reset();
 		if(newroot->child) newroot->child->parent = newroot;
+		return newroot;
 	}
 
 	/** \brief Meld another forest to this Fibonacci heap.
@@ -136,30 +139,32 @@ private:
 	/** \brief insert a data node */
 	node insert(std::shared_ptr<internal_data> datanode) {
 		_size++;
-		datanode->structure = std::make_shared<internal_structure>();
-		datanode->structure->left_sibling = datanode->structure;
-		datanode->structure->right_sibling = datanode->structure;
-		meld(datanode->structure);
-		return datanode->structure;
+		std::shared_ptr<internal_structure> p = std::make_shared<internal_structure>();
+		datanode->structure = p;
+		p->left_sibling = p;
+		p->right_sibling = p;
+		meld(p);
+		return node(datanode);
 	}
 
 	/** \brief remove the subtree rooted at p */
 	void remove_tree(std::shared_ptr<internal_structure> p) {
-		if(p->parent) {
-			p->parent->degree--;
-			if(p->parent->degree==0)
-				p->parent->child = nullptr;
-			else if(p->parent->child==p)
-				p->parent->child = p->right_sibling;
+		if(!p->parent.expired()) {
+			std::shared_ptr<internal_structure> pp = p->parent.lock();
+			pp->degree--;
+			if(pp->degree==0)
+				pp->child = nullptr;
+			else if(pp->child==p)
+				pp->child = p->right_sibling;
 		}
-		std::swap(p->left_sibling->right_sibling, p->right_sibling);
+		std::swap(p->left_sibling.lock()->right_sibling, p->right_sibling);
 		std::swap(p->right_sibling->left_sibling, p->left_sibling);
 	}
 
 	/** \brief cascading cut */
 	void cascading_cut(std::shared_ptr<internal_structure> p) {
 		if(p==nullptr) return;
-		std::shared_ptr<internal_structure> oldparent = p->parent;
+		std::shared_ptr<internal_structure> oldparent = p->parent.lock();
 		if(oldparent){
 			if(p->childcut){
 				remove_tree(p);
@@ -172,16 +177,14 @@ private:
 
 	/** \brief Remove the element specified by the parameter.*/
 	void remove(std::shared_ptr<internal_structure> p) {
-		if(p==min)
-			return remove();
 		_size--;
 		// remove n from tree
 		remove_tree(p);
-		p->data->structure = nullptr;
+		p->data->structure.reset();
 		// insert n's child back
 		meld(p->child);
 		// cascading cut
-		cascading_cut(p->parent);
+		cascading_cut(p->parent.lock());
 	}
 
 	/** \brief calculate the max degree of nodes */
@@ -216,7 +219,7 @@ public:
 	 *
 	 * @param old the Fibonacci heap to be copied
 	 */
-	fibonacci_heap(const fibonacci_heap &old):_size(old._size),min(duplicate_nodes(old.min,nullptr,nullptr)) {}
+	fibonacci_heap(const fibonacci_heap &old):min(duplicate_nodes(old.min,nullptr,nullptr)),_size(old._size) {}
 
 	/** \brief the move constructor.
 	 *
@@ -256,6 +259,8 @@ public:
 	 */
 	class node {
 
+		friend class fibonacci_heap;
+
 		/** \brief pointer to interanl node */
 		std::shared_ptr<internal_data> internal;
 
@@ -265,6 +270,13 @@ public:
 		 * @param internal pointer to internal node
 		 */
 		node(std::shared_ptr<internal_structure> internal):internal(internal->data){}
+
+		/** \brief create a node object from internal nodes
+		 *
+		 * This is a private constructor, so the users are not allowed to create a node object.
+		 * @param internal pointer to internal node
+		 */
+		node(std::shared_ptr<internal_data> internal):internal(internal){}
 
 	public:
 
@@ -283,6 +295,11 @@ public:
 		 */
 		const T &data() const { return internal->data; }
 
+		/** \brief operator to test if two node are the same */
+		bool operator==(node rhs) {
+			return internal==rhs.internal;
+		}
+
 	};
 
 	/** \brief Return the number of elements stored.
@@ -297,7 +314,7 @@ public:
 	 * @param data the data of the element to be inserted
 	 * @return node object holding the inserted element
 	 */
-	node insert(K key,const T &data) { return insert(internal_data(key, data)); }
+	node insert(K key,const T &data) { return insert(std::make_shared<internal_data>(key, data)); }
 
 	/** \brief Insert an element.
 	 *
@@ -305,7 +322,7 @@ public:
 	 * @param value the data of the element to be inserted
 	 * @return node object holding the inserted element
 	 */
-	node insert(K key,T &&data)  { return insert(internal_data(key, data)); }
+	node insert(K key,T &&data)  { return insert(std::make_shared<internal_data>(key, data)); }
 
 	/** \brief Insert an element.
 	 *
@@ -347,20 +364,20 @@ public:
 	 * @param new_key the new key of the node
 	 */
 	void decrease_key(node n,K new_key) {
-		if(Compare()(n->key(),new_key)) throw "increase_key is not supported";
-		if(n.internal->structure==nullptr) throw "the given node is not in this Fibonacci heap";
-		std::shared_ptr<internal_structure> p = n.internal->structure->parent;
+		if(Compare()(n.key(),new_key)) throw "increase_key is not supported";
+		if(n.internal->structure.expired()) throw "the given node is not in this Fibonacci heap";
+		std::shared_ptr<internal_structure> p = n.internal->structure.lock()->parent.lock();
 		if(p) {
 			if(Compare()(new_key,p->data->key)) {
-				remove_tree(n.internal->structure);
-				meld(n.internal->structure);
+				remove_tree(n.internal->structure.lock());
+				meld(n.internal->structure.lock());
 				cascading_cut(p);
 			} else
 				n.internal->key = new_key;
 		} else {
 			n.internal->key = new_key;
 			if(Compare()(new_key,min->data->key))
-				min = n.internal->structure;
+				min = n.internal->structure.lock();
 		}
 	}
 
@@ -370,10 +387,10 @@ public:
 	node remove() {
 		if(_size==0) throw "no element to remove";
 		std::shared_ptr<internal_structure> oldmin = min;
-		min == nullptr;
+		min = nullptr;
 
 		// merge trees of same degrees
-		std::shared_ptr<internal_structure> trees[max_degree()+1];
+		std::vector<std::shared_ptr<internal_structure>> trees(max_degree()+1);
 		std::shared_ptr<internal_structure> p = min->child;
 		while(p!=min) {
 			std::shared_ptr<internal_structure> q = p;
@@ -384,7 +401,7 @@ public:
 				p = min->right_sibling;
 
 			while(trees[q->degree]!=nullptr) {
-				bool q_is_smaller = Compare()(q,trees[q->degree]);
+				bool q_is_smaller = Compare()(q->data->key,trees[q->degree]->data->key);
 				std::shared_ptr<internal_structure> smaller = q_is_smaller?q:trees[q->degree];
 				std::shared_ptr<internal_structure> larger = q_is_smaller?trees[q->degree]:q;
 				trees[q->degree] = nullptr;
@@ -393,7 +410,8 @@ public:
 				smaller->degree++;
 				if(smaller->child==nullptr) {
 					smaller->child = larger;
-					larger->right_sibling = larger->left_sibling = larger;
+					larger->right_sibling = larger;
+					larger->left_sibling = larger;
 				} else {
 					larger->right_sibling = smaller->child->right_sibling;
 					smaller->child->right_sibling->left_sibling = larger;
@@ -407,15 +425,16 @@ public:
 
 		// construct sibling list for roots
 		for(std::shared_ptr<internal_structure> p:trees) {
-			if(p==nullptr) continue;
-			p->parent = nullptr;
-			if(min==nullptr) {
+			if(!p) continue;
+			p->parent.reset();
+			if(!min) {
 				min = p;
-				p->right_sibling = p->left_sibling = p;
+				p->right_sibling = p;
+				p->left_sibling = p;
 			} else {
 				p->right_sibling = min->right_sibling;
 				p->left_sibling = min;
-				min->right_sibling.left_sibling = p;
+				min->right_sibling->left_sibling = p;
 				min->right_sibling = p;
 				if(Compare()(p->data->key,min->data->key))
 					min = p;
@@ -423,7 +442,7 @@ public:
 		}
 
 		_size--;
-		oldmin->data->structure = nullptr;
+		oldmin->data->structure.reset();
 		return node(oldmin->data);
 	}
 
@@ -437,8 +456,9 @@ public:
 	 * @return the removed node object
 	 */
 	node remove(node n) {
-		if(n.internal->structure==nullptr) throw "the given node is not in this Fibonacci heap";
-		remove(n.internal->structure);
+		if(n.internal->structure.expired()) throw "the given node is not in this Fibonacci heap";
+		if(n.internal->structure.lock()==min) return remove();
+		remove(n.internal->structure.lock());
 		return n;
 	}
 };
