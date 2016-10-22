@@ -1,2 +1,2 @@
 test:test.cpp fibonacci.hpp
-	g++ test.cpp -o test -lgtest
+	g++ -Wall test.cpp -o test -lgtest

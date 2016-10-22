@@ -188,7 +188,7 @@ private:
 	}
 
 	/** \brief calculate the max degree of nodes */
-	size_t max_degree() {
+	size_t max_degree() const {
 		return std::floor(std::log(_size)/std::log((std::sqrt(5.0)+1.0)/2.0));
 	}
 
@@ -228,8 +228,9 @@ public:
 	 *
 	 * @param old the Fibonacci heap to move data from
 	 */
-	fibonacci_heap(fibonacci_heap &&old):_size(old._size),min(old.min) {
+	fibonacci_heap(fibonacci_heap &&old):min(old.min),_size(old._size) {
 		old.min = nullptr;
+		old._size = 0;
 	}
 
 	~fibonacci_heap() {
@@ -245,8 +246,8 @@ public:
 	 * @return reference to this object
 	 */
 	fibonacci_heap& operator = (fibonacci_heap old) {
-		std::swap(this->_size,old->_size);
-		std::swap(this->min,old->min);
+		std::swap(this->_size,old._size);
+		std::swap(this->min,old.min);
 		return *this;
 	}
 
