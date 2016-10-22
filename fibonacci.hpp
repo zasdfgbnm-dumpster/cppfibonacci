@@ -17,9 +17,8 @@
 #include <cmath>
 #include <vector>
 
-#ifdef FIBONACCI_HEAP_TEST_FRIEND
-class FIBONACCI_HEAP_TEST_FRIEND;
-#endif
+template <typename K, typename T, typename Compare=std::less<K>>
+class fibonacci_whitebox_test;
 
 /** \brief A C++ implementation of Fibonacci heap
  *
@@ -38,9 +37,7 @@ private:
 	/** To allow user defined test class to access private members of this class,
 	  * simply define the test class name as macro FIBONACCI_HEAP_TEST_FRIEND
 	  */
-	#ifdef FIBONACCI_HEAP_TEST_FRIEND
-	friend class FIBONACCI_HEAP_TEST_FRIEND;
-	#endif
+	friend class fibonacci_whitebox_test<K,T,Compare>;
 
 	class internal_structure;
 	class internal_data;
@@ -453,22 +450,13 @@ public:
 		}
 		cout << "done same degree merge" << endl;
 
-		// construct sibling list for roots
+		// meld trees of different degree back
+		min = nullptr;
 		for(ssp p:trees) {
 			if(!p) continue;
-			p->parent.reset();
-			if(!min) {
-				min = p;
-				p->right_sibling = p;
-				p->left_sibling = p;
-			} else {
-				p->right_sibling = min->right_sibling;
-				p->left_sibling = min;
-				min->right_sibling->left_sibling = p;
-				min->right_sibling = p;
-				if(Compare()(p->data->key,min->data->key))
-					min = p;
-			}
+			p->right_sibling = p;
+			p->left_sibling = p;
+			meld(p);
 		}
 
 		_size--;

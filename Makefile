@@ -1,9 +1,5 @@
-test:test.cpp fibonacci.hpp
+test:test.cpp fibonacci.hpp fibonacci_test.hpp
 	g++ -Wall test.cpp -o test -lgtest
 
 runtest:test
 	./test
-
-rundebug:debug.cpp fibonacci.hpp
-	g++ -Wall debug.cpp -o debug -lgtest
-	./debug
