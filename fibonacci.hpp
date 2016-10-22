@@ -98,7 +98,7 @@ private:
 			newhead = newroot;
 		}
 		// setup new data
-		std::shared_ptr<internal_data> newroot_data = std::make_shared<internal_data>(root->data);
+		std::shared_ptr<internal_data> newroot_data = std::make_shared<internal_data>(*(root->data));
 		newroot_data->structure = newroot;
 		newroot->data = newroot_data;
 		// setup new right_sibling
@@ -124,16 +124,22 @@ private:
 		std::shared_ptr<internal_structure> oldhead = node;
 		std::shared_ptr<internal_structure> p = oldhead;
 		do {
-			p->parent = min->parent;
+			p->parent.reset();
 			if(Compare()(p->data->key,node->data->key))
 				node = p;
 			p=p->right_sibling;
 		} while(p!=oldhead);
 		// merge sibling list
-		std::swap(min->right_sibling,node->right_sibling);
-		std::swap(min->right_sibling->left_sibling,node->right_sibling->left_sibling);
-		if(Compare()(node->data->key,min->data->key))
-			min = node;
+		if(min) {
+			std::swap(min->right_sibling,node->right_sibling);
+			std::swap(min->right_sibling->left_sibling,node->right_sibling->left_sibling);
+			if(Compare()(node->data->key,min->data->key))
+				min = node;
+		} else {
+			p->right_sibling = p;
+			p->left_sibling = p;
+		}
+
 	}
 
 	/** \brief insert a data node */
@@ -143,6 +149,7 @@ private:
 		datanode->structure = p;
 		p->left_sibling = p;
 		p->right_sibling = p;
+		p->data = datanode;
 		meld(p);
 		return node(datanode);
 	}

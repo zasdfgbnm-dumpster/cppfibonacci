@@ -6,10 +6,11 @@
 #include <random>
 #include <algorithm>
 #include <limits>
-#define FIBONACCI_HEAP_TEST_FRIEND fibonacci_test
-#include "fibonacci.hpp"
 
 using namespace std;
+
+#define FIBONACCI_HEAP_TEST_FRIEND fibonacci_test
+#include "fibonacci.hpp"
 
 /** \brief container than contains implementation of tests */
 class fibonacci_test {
@@ -318,11 +319,13 @@ public:
 	virtual void random_step() {
 		// initialize or nothing
 		if(fh[0]==nullptr&&fh[1]==nullptr) {
+			cout << "initialize" << endl;
 			fh[0] = make_shared<fh_t>();
 			return;
 		}
 		// meld or nothing
 		if(fh[0]!=nullptr && fh[1]!=nullptr && u01(rng)<pmeld) {
+			cout << "meld" << endl;
 			int i = ui01(rng);
 			fh[i]->meld(*fh[1-i]);
 			nodes[i].insert(nodes[i].end(),nodes[1-i].begin(),nodes[1-i].end());
@@ -331,6 +334,7 @@ public:
 		}
 		// destroy one or nothing
 		if(fh[0]!=nullptr && fh[1]!=nullptr && u01(rng)<pdestroy) {
+			cout << "destroy" << endl;
 			int i = ui01(rng);
 			fh[i].reset();
 			nodes[i].clear();
@@ -339,8 +343,9 @@ public:
 		// create new or nothing
 		int i = ui01(rng);
 		if(fh[i]==nullptr && u01(rng)<pnew) {
+			cout << "create new" << endl;
 			if(u01(rng)<pcopy)
-				fh[i] = make_shared<fh_t>(move(*fh[1-i]));
+				fh[i] = make_shared<fh_t>(*fh[1-i]);
 			else
 				fh[i] = make_shared<fh_t>();
 			return;
@@ -349,41 +354,56 @@ public:
 			i = 1-i;
 		// insert, remove, remove(node), or decrease_key
 		double movetype = u01(rng);
+		if(fh[i]->size()==0)
+			movetype = 0;
 		double acceptrate = 0;
 		if(movetype<0.5) // insert
 			acceptrate = probability(fh[i]->size()+1)/probability(fh[i]->size());
 		else
 			acceptrate = probability(fh[i]->size()-1)/probability(fh[i]->size());
+		cout << "accept rate = " << acceptrate << endl;
 		if(u01(rng)<acceptrate) {
 			if(movetype<0.5) {
+				cout << "insert" << endl;
 				// insert
 				nodes[i].push_back(fh[i]->insert(uint(rng),uint(rng)));
+				return;
 			} else {
 				if((!nodes[i].empty())&&u01(rng)<premoveany) {
+					cout << "remove(node)" << endl;
 					// remove(node)
 					size_t s = nodes[i].size();
 					uniform_int_distribution<int> dist(0,s-1);
 					size_t rmpos = dist(rng);
+					cout << "rmpos = " << rmpos << endl;
 					fh[i]->remove(nodes[i][rmpos]);
+					cout << "done remove" << endl;
 					nodes[i].erase(nodes[i].begin()+rmpos);
+					return;
 				} else { // remove()
+					cout << "remove" << endl;
 					fh_t::node r = fh[i]->remove();
 					nodes[i].erase(remove(nodes[i].begin(),nodes[i].end(),r),nodes[i].end());
+					return;
 				}
 			}
 		} else {
 			if((!nodes[i].empty())&&u01(rng)<pdecreasekey) {
+				cout << "decrease key" << endl;
 				// decrease_key(node)
 				size_t s = nodes[i].size();
 				uniform_int_distribution<int> dist(0,s-1);
 				fh_t::node n = nodes[i][dist(rng)];
 				uniform_int_distribution<int> dist2(numeric_limits<int>::min(),n.key());
 				fh[i]->decrease_key(n,dist2(rng));
+				return;
 			} else {
+				cout << "insert & remove min" << endl;
 				// insert then remove min
 				nodes[i].push_back(fh[i]->insert(uint(rng),uint(rng)));
 				fh_t::node r = fh[i]->remove();
 				nodes[i].erase(remove(nodes[i].begin(),nodes[i].end(),r),nodes[i].end());
+				return;
 			}
 		}
 	}
@@ -394,11 +414,12 @@ TEST(whitebox,consistency) {
 	int steps = 10000;
 	random_engine r;
 	for(int i=0;i<steps;i++) {
+		cout << "step = " << i << endl;
 		r.random_step();
-		int a01[] = {0,1};
-		for(int i:a01) {
-			if(r.fh[i]) fibonacci_test::data_structure_consistency_test(*r.fh[i]);
-		}
+		// int a01[] = {0,1};
+		// for(int i:a01) {
+		// 	if(r.fh[i]) fibonacci_test::data_structure_consistency_test(*r.fh[i]);
+		// }
 	}
 }
 
