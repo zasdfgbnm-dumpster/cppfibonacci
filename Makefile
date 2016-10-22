@@ -3,3 +3,7 @@ test:test.cpp fibonacci.hpp
 
 runtest:test
 	./test
+
+rundebug:debug.cpp fibonacci.hpp
+	g++ -Wall debug.cpp -o debug -lgtest
+	./debug

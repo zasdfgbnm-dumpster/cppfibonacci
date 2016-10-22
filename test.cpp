@@ -294,6 +294,7 @@ public:
 class random_engine {
 public:
 	using fh_t = fibonacci_heap<int,int>;
+	random_device r;
 	default_random_engine rng;
 	uniform_real_distribution<double> u01 = uniform_real_distribution<double>(0,1);
 	uniform_int_distribution<int> ui01 = uniform_int_distribution<int>(0,1);
@@ -301,9 +302,11 @@ public:
 	shared_ptr<fh_t> fh[2];
 	vector<fh_t::node> nodes[2];
 
+	random_engine():rng(r()) {}
+
 	double pnew = 0.1;
 	double pcopy = 0.5;
-	double pdestroy = 0.05;
+	double pdestroy = 0.005;
 	double pmeld = 0.1;
 	double premoveany = 0.5;
 	double pdecreasekey = 0.5;
@@ -317,10 +320,22 @@ public:
 
 	/** \brief make a random step */
 	virtual void random_step() {
+		cout << "size = ";
+		if(fh[0]==nullptr)
+			cout << "null";
+		else
+			cout << fh[0]->size();
+		cout << " , ";
+		if(fh[1]==nullptr)
+			cout << "null";
+		else
+			cout << fh[1]->size();
+		cout << endl;
 		// initialize or nothing
 		if(fh[0]==nullptr&&fh[1]==nullptr) {
 			cout << "initialize" << endl;
-			fh[0] = make_shared<fh_t>();
+			int i = ui01(rng);
+			fh[i] = make_shared<fh_t>();
 			return;
 		}
 		// meld or nothing
