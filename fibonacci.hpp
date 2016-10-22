@@ -44,6 +44,8 @@ private:
 	// useful short for types
 	using ssp = std::shared_ptr<internal_structure>;
 	using swp = std::weak_ptr<internal_structure>;
+	using dsp = std::shared_ptr<internal_data>;
+	using dwp = std::weak_ptr<internal_data>;
 
 	/** \brief the internal class responsible for the structure in Fibonacci heap
 	 * Structural information and data are stored to make it easier for std::shared_ptr
@@ -52,12 +54,13 @@ private:
 	class internal_structure {
 	public:
 		bool childcut = false;
-		size_t degree;
-		std::shared_ptr<internal_data> data;
+		size_t degree = 0;
+		dsp data = nullptr;
 		ssp right_sibling;
 		swp left_sibling;
-		ssp child;
-		swp parent;
+		ssp child = nullptr;
+		swp parent = ssp(nullptr);
+		internal_structure():right_sibling(this),left_sibling(right_sibling){}
 		~internal_structure() {
 			data->structure.reset();
 			// cut loops inside child's sibling list so that std::shared_ptr can
@@ -99,7 +102,7 @@ private:
 			newhead = newroot;
 		}
 		// setup new data
-		std::shared_ptr<internal_data> newroot_data = std::make_shared<internal_data>(*(root->data));
+		dsp newroot_data = std::make_shared<internal_data>(*(root->data));
 		newroot_data->structure = newroot;
 		newroot->data = newroot_data;
 		// setup new right_sibling
@@ -118,50 +121,80 @@ private:
 
 	/** \brief Meld another forest to this Fibonacci heap.
 	 *
-	 * @param node pointer to the any root of the forest
-	 * @param full whether to do a full meld or a temporary meld. A full meld fix
-	 * the parent pointers of all roots that come in and update the min pointer,
-	 * while a temporary meld only merge the sibling list and do nothing else.
+	 * Note that the degree of the node that has "target" as its child list will
+	 * not be updated by this method and must be manually updated if neccessary.
+	 *
+	 * @param target pointer to one root of the target sibling list, default is
+	 * the min pointer
+	 *
+	 * @param node pointer to the any root of the forest that will come in
+	 *
+	 * @param update_parent whether to update the parent pointers of all roots
+	 * that will come in. This takes O(m) time, where m is number of elements in
+	 * the sibling list spedified by "node".
+	 *
+	 * @param find_min whether to find the minimum of the roots at sibling list
+	 * specified by "node". This takes O(m) time, where m is number of elements in
+	 * the sibling list spedified by "node".
+	 *
+	 * @param set_min whether to set target to point towards the min of the  merged
+	 * sibling list. If this parameter is true but "find_min" is false, the "node"
+	 * is assumed to already point to the minimum root in the sibling list specified
+	 * by "node".
+	 *
+	 * @param reset_childcut whether to reset the childcut value to false of roots
+	 * in sibling list specified by "node". This takes O(m) time, where m is number
+	 * of elements in the sibling list spedified by "node".
+	 *
+	 * @param parent if the target is empty there is no way to infer parent pointer
+	 * from target, in this case this parameter will be used. This parameter is
+	 * automatically ignored if target is not empty. Default value is nullptr.
 	 */
-	void meld(ssp node, bool full=true) {
+	static void meld(ssp &target, ssp node, bool update_parent, bool find_min, bool set_min, bool reset_childcut, ssp parent=nullptr) {
 		if(!node) return;
-		// update parent
-		ssp oldhead = node;
-		ssp p = oldhead;
-		if(full) {
+		if(target) parent = target->parent.lock();
+		// update parent and find the min element
+		// if neither updating the parent nor the finding min, nor reseting childcut
+		// is needed, avoid this O(m) loop
+		if ( update_parent || find_min || reset_childcut ) {
+			ssp oldhead = node;
+			ssp p = oldhead;
 			do {
-				p->parent.reset();
-				if(Compare()(p->data->key,node->data->key))
+				if(update_parent) p->parent = parent;
+				if(reset_childcut) p->childcut = false;
+				if(find_min && Compare()(p->data->key,node->data->key))
 					node = p;
 				p=p->right_sibling;
 			} while(p!=oldhead);
 		}
-		// merge sibling list
-		if(min) {
-			std::swap(min->right_sibling,node->right_sibling);
-			std::swap(min->right_sibling->left_sibling,node->right_sibling->left_sibling);
-			if(full&&Compare()(node->data->key,min->data->key))
-				min = node;
+		// merge sibling lists
+		if(target) {
+			std::swap(target->right_sibling,node->right_sibling);
+			std::swap(target->right_sibling->left_sibling,node->right_sibling->left_sibling);
+			if( set_min && Compare()(node->data->key,target->data->key) )
+				target = node;
 		} else {
-			min = node;
+			target = node;
 		}
 	}
 
 	/** \brief insert a data node */
-	node insert(std::shared_ptr<internal_data> datanode) {
+	node insert(dsp datanode) {
 		_size++;
 		ssp p = std::make_shared<internal_structure>();
 		datanode->structure = p;
-		p->left_sibling = p;
-		p->right_sibling = p;
 		p->data = datanode;
-		meld(p);
+		meld(min,p,true,false,true,false);
 		return node(datanode);
 	}
 
-	/** \brief remove the subtree rooted at p */
+	/** \brief Remove the subtree rooted at p.
+	 * The degree and child pointer of p's parent and left_sibling and right_sibling
+	 * of p's siblings will be updated for consistency. Besides, sibling pointers of
+	 * p are also updated so that p itself is a forest of one tree. p's parent pointer
+	 * and childcut are kept unchanged.
+	 */
 	void remove_tree(ssp p) {
-		cout << "remove_tree" << endl;
 		if(!p->parent.expired()) {
 			ssp pp = p->parent.lock();
 			pp->degree--;
@@ -177,29 +210,15 @@ private:
 	/** \brief cascading cut */
 	void cascading_cut(ssp p) {
 		if(p==nullptr) return;
-		ssp oldparent = p->parent.lock();
-		if(oldparent){
+		ssp pp = p->parent.lock();
+		if(pp){
 			if(p->childcut){
 				remove_tree(p);
-				meld(p);
-				cascading_cut(oldparent);
+				meld(min,p,true,false,true,false);
+				cascading_cut(pp);
 			} else
 				p->childcut = true;
 		}
-	}
-
-	/** \brief Remove the element specified by the parameter.*/
-	void remove(ssp p) {
-		cout << "private remove" << endl;
-		_size--;
-		// remove n from tree
-		remove_tree(p);
-		cout << "done remove tree" << endl;
-		p->data->structure.reset();
-		// insert n's child back
-		if(p->child) meld(p->child);
-		// cascading cut
-		cascading_cut(p->parent.lock());
 	}
 
 	/** \brief calculate the max degree of nodes */
@@ -278,7 +297,7 @@ public:
 		friend class fibonacci_heap;
 
 		/** \brief pointer to interanl node */
-		std::shared_ptr<internal_data> internal;
+		dsp internal;
 
 		/** \brief create a node object from internal nodes
 		 *
@@ -292,7 +311,7 @@ public:
 		 * This is a private constructor, so the users are not allowed to create a node object.
 		 * @param internal pointer to internal node
 		 */
-		node(std::shared_ptr<internal_data> internal):internal(internal){}
+		node(dsp internal):internal(internal){}
 
 	public:
 
@@ -364,7 +383,7 @@ public:
 	 * @param fh the Fibonacci heap to be melded
 	 */
 	void meld(fibonacci_heap<K,T,Compare> &fh) {
-		meld(fh.min);
+		meld(min,fh.min,false,false,true,false);
 		fh.min = nullptr;
 		_size += fh._size;
 		fh._size = 0;
@@ -382,19 +401,17 @@ public:
 	void decrease_key(node n,K new_key) {
 		if(Compare()(n.key(),new_key)) throw "increase_key is not supported";
 		if(n.internal->structure.expired()) throw "the given node is not in this Fibonacci heap";
-		ssp p = n.internal->structure.lock()->parent.lock();
+		ssp ns = n.internal->structure.lock();
+		ssp p = ns->parent.lock();
+		n.internal->key = new_key;
 		if(p) {
 			if(Compare()(new_key,p->data->key)) {
-				remove_tree(n.internal->structure.lock());
-				meld(n.internal->structure.lock());
+				remove_tree(ns);
+				meld(min,ns,true,false,true,false);
 				cascading_cut(p);
-			} else
-				n.internal->key = new_key;
-		} else {
-			n.internal->key = new_key;
-			if(Compare()(new_key,min->data->key))
-				min = n.internal->structure.lock();
-		}
+			}
+		} else if(Compare()(new_key,min->data->key))
+			min = ns;
 	}
 
 	/** \brief Remove the top element.
@@ -411,43 +428,31 @@ public:
 
 		// merge trees of same degrees
 		std::vector<ssp> trees(max_degree()+1);
-		if(oldmin->child)
-			meld(oldmin->child,false);
-		for(ssp p=oldmin->right_sibling;p!=oldmin;) {
-			ssp q = p;
-			// same degree merge will change right_sibling of p, so we must update
-			// p before same degree merge.
-			p=p->right_sibling;
+		if(min->child)
+			meld(min,min->child,false,false,false,false);
+		while(min->right_sibling!=min) {
+			ssp q = min->right_sibling;
+			remove_tree(q);
 			while(trees[q->degree]) {
 				bool q_is_smaller = Compare()(q->data->key,trees[q->degree]->data->key);
 				ssp smaller = q_is_smaller?q:trees[q->degree];
 				ssp larger = q_is_smaller?trees[q->degree]:q;
 				trees[q->degree] = nullptr;
-				larger->childcut = false;
-				larger->parent = smaller;
+				meld(smaller->child,larger,true,false,false,true);
 				smaller->degree++;
-				if(!smaller->child) {
-					smaller->child = larger;
-					larger->right_sibling = larger;
-					larger->left_sibling = larger;
-				} else {
-					larger->right_sibling = smaller->child->right_sibling;
-					smaller->child->right_sibling->left_sibling = larger;
-					larger->left_sibling = smaller->child;
-					smaller->child->right_sibling = larger;
-				}
 				q = smaller;
 			}
 			trees[q->degree] = q;
 		}
 
 		// meld trees of different degree back
+		// cut the loop so that the resource for deleted structure node can be
+		// cleaned up by std::shared_ptr.
+		min->right_sibling = nullptr;
 		min = nullptr;
 		for(ssp p:trees) {
 			if(!p) continue;
-			p->right_sibling = p;
-			p->left_sibling = p;
-			meld(p);
+			meld(min,p,true,false,true,false);
 		}
 
 		_size--;
@@ -466,8 +471,19 @@ public:
 	 */
 	node remove(node n) {
 		if(n.internal->structure.expired()) throw "the given node is not in this Fibonacci heap";
-		if(n.internal->structure.lock()==min) return remove();
-		remove(n.internal->structure.lock());
+		ssp p = n.internal->structure.lock();
+		if(p==min) return remove();
+		_size--;
+		// remove n from tree
+		remove_tree(p);
+		p->data->structure.reset();
+		// insert n's child back
+		if(p->child) meld(min,p->child,true,true,true,false);
+		// cascading cut
+		cascading_cut(p->parent.lock());
+		// cut the loop so that the resource for deleted structure node can be
+		// cleaned up by std::shared_ptr.
+		p->right_sibling = nullptr;
 		return n;
 	}
 };
