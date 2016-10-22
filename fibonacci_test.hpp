@@ -44,6 +44,9 @@ private:
 	 * this point including the parameter "node" itself
 	 */
 	static void _data_structure_consistency_test(ss_t node, ss_t parent, ss_t head, size_t &degree) {
+		// if node is null, head must also be null
+		if(!node)
+			ASSERT_FALSE(head);
 		// if sibling test done
 		if (node==head) {
 			degree = 0;
@@ -90,13 +93,6 @@ private:
 		} while(p!=root->child);
 		for(bool i:children_degrees)
 			ASSERT_TRUE(i);
-	}
-
-	/** \brief test if the min pointer really point to the min */
-	static void test_min_ptr(const fh_t &fh) {
-		for(ss_t p=fh.min->right_sibling; p!=fh.min; p=p->right_sibling) {
-			ASSERT_LE(fh.min->data->key,p->data->key);
-		}
 	}
 
 	/** \brief count nodes in Fibonacci heap */
@@ -188,16 +184,22 @@ public:
 		size_t unused;
 		_data_structure_consistency_test(fh.min,nullptr,nullptr,unused);
 		// test for 6
-		test_min_ptr(fh);
+		if(fh.min) {
+			for(ss_t p=fh.min->right_sibling; p!=fh.min; p=p->right_sibling) {
+				ASSERT_LE(fh.min->data->key,p->data->key);
+			}
+		}
 		// test for 7
 		ASSERT_EQ(fh._size,count_nodes(fh.min));
 		// test for 8
-		size_t max_deg = fh.max_degree();
-		ss_t p = fh.min;
-		do {
-			ASSERT_LE(p->degree,max_deg);
-			p = p->right_sibling;
-		} while(p!=fh.min);
+		if(fh.min) {
+			size_t max_deg = fh.max_degree();
+			ss_t p = fh.min;
+			do {
+				ASSERT_LE(p->degree,max_deg);
+				p = p->right_sibling;
+			} while(p!=fh.min);
+		}
 	}
 
 	/** \brief test whether the fibonacci_heap object is copied/moved correctly

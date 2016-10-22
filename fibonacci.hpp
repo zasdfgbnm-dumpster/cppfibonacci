@@ -124,7 +124,6 @@ private:
 	 * while a temporary meld only merge the sibling list and do nothing else.
 	 */
 	void meld(ssp node, bool full=true) {
-		cout << "private meld" << endl;
 		if(!node) return;
 		// update parent
 		ssp oldhead = node;
@@ -208,7 +207,7 @@ private:
 		return std::floor(std::log(_size)/std::log((std::sqrt(5.0)+1.0)/2.0));
 	}
 
-	ssp min;
+	ssp min = nullptr;
 	size_t _size = 0;
 
 public:
@@ -365,7 +364,6 @@ public:
 	 * @param fh the Fibonacci heap to be melded
 	 */
 	void meld(fibonacci_heap<K,T,Compare> &fh) {
-		cout << "meld fh" << endl;
 		meld(fh.min);
 		fh.min = nullptr;
 		_size += fh._size;
@@ -403,7 +401,6 @@ public:
 	 * @return the removed node object
 	 */
 	node remove() {
-		cout << "remove min" << endl;
 		if(_size==0) throw "no element to remove";
 		ssp oldmin = min;
 		if(_size==1) {
@@ -413,20 +410,15 @@ public:
 		}
 
 		// merge trees of same degrees
-		cout << "max degree = " << max_degree() << endl;
 		std::vector<ssp> trees(max_degree()+1);
 		if(oldmin->child)
 			meld(oldmin->child,false);
-		int count = 0;
 		for(ssp p=oldmin->right_sibling;p!=oldmin;) {
-			cout << "tree #" << count++ << endl;
-			cout << "tree=" << p.get() << " , left_sibling=" << p->left_sibling.lock().get() << " , right_sibling=" << p->right_sibling.get() << endl;
 			ssp q = p;
 			// same degree merge will change right_sibling of p, so we must update
 			// p before same degree merge.
 			p=p->right_sibling;
 			while(trees[q->degree]) {
-				cout << "merge needed for degree " << q->degree << endl;
 				bool q_is_smaller = Compare()(q->data->key,trees[q->degree]->data->key);
 				ssp smaller = q_is_smaller?q:trees[q->degree];
 				ssp larger = q_is_smaller?trees[q->degree]:q;
@@ -448,7 +440,6 @@ public:
 			}
 			trees[q->degree] = q;
 		}
-		cout << "done same degree merge" << endl;
 
 		// meld trees of different degree back
 		min = nullptr;

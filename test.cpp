@@ -145,20 +145,6 @@ public:
 	}
 };
 
-/** \brief run random operations and check consistency after each operation */
-TEST(whitebox,consistency) {
-	// int steps = 10000;
-	// random_engine r;
-	// for(int i=0;i<steps;i++) {
-	// 	cout << "step = " << i << endl;
-	// 	r.random_step();
-	// 	int a01[] = {0,1};
-	// 	for(int i:a01) {
-	// 		if(r.fh[i]) fibonacci_test::data_structure_consistency_test(*r.fh[i]);
-	// 	}
-	// }
-}
-
 /** \brief a simple test that create easy Fibonacci heaps and do operations on it */
 TEST(whitebox,a_simple_example) {
 	fibonacci_heap<int,int> fh1({
@@ -172,17 +158,42 @@ TEST(whitebox,a_simple_example) {
 		{3,4},
 		{5,6}
 	});
-	fh1.meld(fh2);
 	whitebox::data_structure_consistency_test(fh2);
+	fh1.meld(fh2);
+	whitebox::data_structure_consistency_test(fh1);
+	whitebox::data_structure_consistency_test(fh2);
+	fibonacci_heap<int,int> fh3;
+	whitebox::data_structure_consistency_test(fh3);
+	fh1.meld(fh3);
+	whitebox::data_structure_consistency_test(fh1);
+	whitebox::data_structure_consistency_test(fh3);
 	cout << "fh1 size " << fh1.size() << endl;
 	fh1.remove();
+	whitebox::data_structure_consistency_test(fh1);
 	cout << "fh1 size " << fh1.size() << endl;
 	fh1.remove();
+	whitebox::data_structure_consistency_test(fh1);
 	cout << "fh1 size " << fh1.size() << endl;
 	fh1.remove();
+	whitebox::data_structure_consistency_test(fh1);
 	cout << "fh1 size " << fh1.size() << endl;
 	fh1.remove();
+	whitebox::data_structure_consistency_test(fh1);
 	cout << "fh1 size " << fh1.size() << endl;
+}
+
+/** \brief run random operations and check consistency after each operation */
+TEST(whitebox,consistency) {
+	// int steps = 10000;
+	// random_engine r;
+	// for(int i=0;i<steps;i++) {
+	// 	cout << "step = " << i << endl;
+	// 	r.random_step();
+	// 	int a01[] = {0,1};
+	// 	for(int i:a01) {
+	// 		if(r.fh[i]) fibonacci_test::data_structure_consistency_test(*r.fh[i]);
+	// 	}
+	// }
 }
 
 /** \brief randomly insert,remove min, meld elements and check if binomial heap
