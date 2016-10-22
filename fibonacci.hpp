@@ -208,8 +208,12 @@ private:
 			else if(pp->child==p)
 				pp->child = p->right_sibling;
 		}
-		std::swap(p->left_sibling.lock()->right_sibling, p->right_sibling);
-		std::swap(p->right_sibling->left_sibling, p->left_sibling);
+		ssp &r = p->right_sibling;
+		ssp &lr = p->left_sibling.lock()->right_sibling;
+		swp &l = p->left_sibling;
+		swp &rl = p->right_sibling->left_sibling;
+		std::swap(lr,r);
+		std::swap(rl,l);
 	}
 
 	/** \brief cascading cut */
@@ -435,18 +439,24 @@ public:
 		std::vector<ssp> trees(max_degree()+1);
 		if(min->child)
 			meld(min,min->child,false,false,false,false);
+		cout << "min = " << min << endl;
 		while(min->right_sibling!=min) {
 			ssp q = min->right_sibling;
+			cout << "next tree is " << q << " has degree " << q->degree << endl;
 			remove_tree(q);
+			cout << "min->right_sibling = " << min->right_sibling << endl;
 			while(trees[q->degree]) {
+				cout << "merge degree: " << q->degree << endl;
 				bool q_is_smaller = Compare()(q->data->key,trees[q->degree]->data->key);
 				ssp smaller = q_is_smaller?q:trees[q->degree];
 				ssp larger = q_is_smaller?trees[q->degree]:q;
 				trees[q->degree] = nullptr;
-				meld(smaller->child,larger,true,false,false,true);
+				meld(smaller->child,larger,true,false,false,true,smaller);
 				smaller->degree++;
+				cout << "get degree: " << smaller->degree << endl;
 				q = smaller;
 			}
+			cout << "done merge" << endl;
 			trees[q->degree] = q;
 		}
 
