@@ -176,8 +176,8 @@ private:
 		}
 		// merge sibling lists
 		if(target) {
-			std::swap(target->right_sibling,node->right_sibling);
-			std::swap(target->right_sibling->left_sibling,node->right_sibling->left_sibling);
+			target->right_sibling.swap(node->right_sibling);
+			target->right_sibling->left_sibling.swap(node->right_sibling->left_sibling);
 			if( set_min && Compare()(node->data->key,target->data->key) )
 				target = node;
 		} else {
@@ -212,8 +212,8 @@ private:
 		ssp &lr = p->left_sibling.lock()->right_sibling;
 		swp &l = p->left_sibling;
 		swp &rl = p->right_sibling->left_sibling;
-		std::swap(lr,r);
-		std::swap(rl,l);
+		lr.swap(r);
+		rl.swap(l);
 	}
 
 	/** \brief cascading cut */
@@ -290,7 +290,7 @@ public:
 	 */
 	fibonacci_heap& operator = (fibonacci_heap old) {
 		std::swap(this->_size,old._size);
-		std::swap(this->min,old.min);
+		this->min.swap(old.min);
 		return *this;
 	}
 
@@ -439,24 +439,18 @@ public:
 		std::vector<ssp> trees(max_degree()+1);
 		if(min->child)
 			meld(min,min->child,false,false,false,false);
-		cout << "min = " << min << endl;
 		while(min->right_sibling!=min) {
 			ssp q = min->right_sibling;
-			cout << "next tree is " << q << " has degree " << q->degree << endl;
 			remove_tree(q);
-			cout << "min->right_sibling = " << min->right_sibling << endl;
 			while(trees[q->degree]) {
-				cout << "merge degree: " << q->degree << endl;
 				bool q_is_smaller = Compare()(q->data->key,trees[q->degree]->data->key);
 				ssp smaller = q_is_smaller?q:trees[q->degree];
 				ssp larger = q_is_smaller?trees[q->degree]:q;
 				trees[q->degree] = nullptr;
 				meld(smaller->child,larger,true,false,false,true,smaller);
 				smaller->degree++;
-				cout << "get degree: " << smaller->degree << endl;
 				q = smaller;
 			}
-			cout << "done merge" << endl;
 			trees[q->degree] = q;
 		}
 

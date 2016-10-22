@@ -58,6 +58,7 @@ private:
 		if(parent) ASSERT_LE(parent->data->key,node->data->key);
 		// test parent and sibling pointers
 		ASSERT_EQ(node->parent.lock(),parent);
+		ASSERT_FALSE(node->left_sibling.expired());
 		ASSERT_EQ(node->left_sibling.lock()->right_sibling,node);
 		ASSERT_EQ(node->right_sibling->left_sibling.lock(),node);
 		// test structure and data pointers
@@ -186,6 +187,7 @@ public:
 		// test for 6
 		if(fh.min) {
 			for(ss_t p=fh.min->right_sibling; p!=fh.min; p=p->right_sibling) {
+				ASSERT_TRUE(p);
 				ASSERT_LE(fh.min->data->key,p->data->key);
 			}
 		}
@@ -196,6 +198,7 @@ public:
 			size_t max_deg = fh.max_degree();
 			ss_t p = fh.min;
 			do {
+				ASSERT_TRUE(p);
 				ASSERT_LE(p->degree,max_deg);
 				p = p->right_sibling;
 			} while(p!=fh.min);
@@ -288,8 +291,8 @@ public:
 		}
 		// test for 3
 		for(std::tuple<wd_t,size_t> &i : dn_keep_list) {
-			ASSERT_EQ(get<0>(i).use_count(),get<1>(i)-1);
-			ASSERT_TRUE(get<0>(i).lock()->structure.expired());
+			ASSERT_EQ(std::get<0>(i).use_count(),std::get<1>(i)-1);
+			ASSERT_TRUE(std::get<0>(i).lock()->structure.expired());
 		}
 	}
 };
