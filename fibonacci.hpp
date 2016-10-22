@@ -55,17 +55,24 @@ private:
 	public:
 		bool childcut = false;
 		size_t degree = 0;
-		dsp data = nullptr;
+		dsp data;
 		ssp right_sibling;
 		swp left_sibling;
-		ssp child = nullptr;
-		swp parent = ssp(nullptr);
-		internal_structure():right_sibling(this),left_sibling(right_sibling){}
+		ssp child;
+		swp parent;
 		~internal_structure() {
 			data->structure.reset();
 			// cut loops inside child's sibling list so that std::shared_ptr can
 			// automatically free unneeded memory
 			if(child) child->right_sibling = nullptr;
+		}
+		static ssp make_single_tree_forest(dsp data) {
+			ssp ret = std::make_shared<internal_structure>();
+			ret->data = data;
+			data->structure = ret;
+			ret->right_sibling = ret;
+			ret->left_sibling = ret;
+			return ret;
 		}
 	};
 
@@ -181,9 +188,7 @@ private:
 	/** \brief insert a data node */
 	node insert(dsp datanode) {
 		_size++;
-		ssp p = std::make_shared<internal_structure>();
-		datanode->structure = p;
-		p->data = datanode;
+		ssp p = internal_structure::make_single_tree_forest(datanode);
 		meld(min,p,true,false,true,false);
 		return node(datanode);
 	}

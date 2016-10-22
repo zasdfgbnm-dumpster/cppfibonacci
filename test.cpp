@@ -170,16 +170,16 @@ TEST(whitebox,a_simple_example) {
 	cout << "fh1 size " << fh1.size() << endl;
 	fh1.remove();
 	whitebox::data_structure_consistency_test(fh1);
-	cout << "fh1 size " << fh1.size() << endl;
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	cout << "fh1 size " << fh1.size() << endl;
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	cout << "fh1 size " << fh1.size() << endl;
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	cout << "fh1 size " << fh1.size() << endl;
+	// cout << "fh1 size " << fh1.size() << endl;
+	// fh1.remove();
+	// whitebox::data_structure_consistency_test(fh1);
+	// cout << "fh1 size " << fh1.size() << endl;
+	// fh1.remove();
+	// whitebox::data_structure_consistency_test(fh1);
+	// cout << "fh1 size " << fh1.size() << endl;
+	// fh1.remove();
+	// whitebox::data_structure_consistency_test(fh1);
+	// cout << "fh1 size " << fh1.size() << endl;
 }
 
 /** \brief run random operations and check consistency after each operation */
