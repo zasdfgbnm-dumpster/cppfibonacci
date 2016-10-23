@@ -567,8 +567,12 @@ public:
 		};
 		std::ostringstream oss;
 		oss << "digraph{min->addr" << min << "[" << child_format << "];";
-		std::tuple<std::string,std::string> traverse_output = traverse(min,nullptr);
-		oss << std::get<0>(traverse_output) << std::get<1>(traverse_output) << "}";
+		if(!min)
+			oss << "addr0[style=invis];}";
+		else {
+			std::tuple<std::string,std::string> traverse_output = traverse(min,nullptr);
+			oss << std::get<0>(traverse_output) << std::get<1>(traverse_output) << "}";
+		}
 		return oss.str();
 	}
 };
