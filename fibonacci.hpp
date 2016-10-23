@@ -16,6 +16,7 @@
 #include <memory>
 #include <cmath>
 #include <vector>
+#include <map>
 #include <string>
 #include <sstream>
 #include <tuple>
@@ -527,20 +528,23 @@ public:
 					std::string left_sibling_format = "color=blue",
 					std::string self_left_right_format = "dir=both color=\"red:blue\""
 				   ) const {
-		std::function<std::tuple<std::string,std::string>(ssp,ssp)> traverse = [&](ssp start,ssp end)->std::tuple<std::string,std::string> {
-			if(!start) return std::make_tuple("","");
-			if(start==end) return std::make_tuple("","");
+		using nodes_t = std::map<int,std::vector<std::string>>;
+		std::function<std::tuple<nodes_t,std::string>(int,ssp,ssp)> traverse = [&](int depth,ssp start,ssp end)->std::tuple<nodes_t,std::string> {
+			if(!start) return std::make_tuple(nodes_t(),"");
+			if(start==end) return std::make_tuple(nodes_t(),"");
 			bool head_of_sibling_list = !end;
 			if(head_of_sibling_list) end = start;
 
-			std::ostringstream oss_nodes;
+			nodes_t nodes;
 			std::ostringstream oss_arrows;
-			// print start node
-			if(head_of_sibling_list)
-				oss_nodes << "{rank=same;";
+
+			// insert this node to node map
+			std::ostringstream oss_nodes;
 			oss_nodes << "addr" << start;
 			if(start->data)
 				oss_nodes << "[" << node_format(start.get(),start->data->key,start->data->data) << "];";
+			nodes[depth] = { oss_nodes.str() };
+
 			// print pointers of start node
 			if(start==start->right_sibling&&start==start->left_sibling.lock()) {
 				oss_arrows << "addr" << start << "->addr" << start << "[" << self_left_right_format << "];";
@@ -554,24 +558,44 @@ public:
 				oss_arrows << "addr" << start << "->addr" << start->child << "[" << child_format << "];";
 			if(!start->parent.expired())
 				oss_arrows << "addr" << start << "->addr" << start->parent.lock() << "[" << parent_format << "];";
+
 			// collect and combine results from other elements in sibling lilst and children
-			std::tuple<std::string,std::string> sibling_output = traverse(start->right_sibling,end);
-			oss_nodes << std::get<0>(sibling_output);
-			if(head_of_sibling_list)
-				oss_nodes << "}";
+			std::function<void(nodes_t &)> merge_nodes = [&](nodes_t &a){
+				for(auto i=a.begin();i!=a.end();++i){
+					int depth = i->first;
+					std::vector<std::string> v = i->second;
+					if(nodes.count(depth)>0)
+						nodes[depth].insert(nodes[depth].end(),v.begin(),v.end());
+					else
+						nodes[depth] = v;
+				}
+			};
+			std::tuple<nodes_t,std::string> sibling_output = traverse(depth,start->right_sibling,end);
+			merge_nodes(std::get<0>(sibling_output));
 			oss_arrows << std::get<1>(sibling_output);
-			std::tuple<std::string,std::string> child_output = traverse(start->child,nullptr);
-			oss_nodes << std::get<0>(child_output);
+			std::tuple<nodes_t,std::string> child_output = traverse(depth+1,start->child,nullptr);
+			merge_nodes(std::get<0>(child_output));
 			oss_arrows << std::get<1>(child_output);
-			return std::make_tuple(oss_nodes.str(),oss_arrows.str());
+			return std::make_tuple(nodes,oss_arrows.str());
 		};
 		std::ostringstream oss;
 		oss << "digraph{min->addr" << min << "[" << child_format << "];";
 		if(!min)
 			oss << "addr0[style=invis];}";
 		else {
-			std::tuple<std::string,std::string> traverse_output = traverse(min,nullptr);
-			oss << std::get<0>(traverse_output) << std::get<1>(traverse_output) << "}";
+			std::tuple<nodes_t,std::string> traverse_output = traverse(0,min,nullptr);
+			nodes_t nodes = std::get<0>(traverse_output);
+			// output nodes
+			int i = 0;
+			while(nodes.count(i)>0){
+				oss << "{rank=same;";
+				for(std::string &n:nodes[i])
+					oss << n;
+				oss << "};";
+				i++;
+			}
+			// output edges
+			oss << std::get<1>(traverse_output) << "}";
 		}
 		return oss.str();
 	}
