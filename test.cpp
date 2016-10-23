@@ -1,7 +1,7 @@
 #include <iostream>
 using namespace std;
 #include "fibonacci.hpp"
-#include "fibonacci_test.hpp"
+#include "fibonacci_whitebox.hpp"
 #include <gtest/gtest.h>
 #include <random>
 #include <algorithm>
@@ -9,7 +9,7 @@ using namespace std;
 
 using namespace std;
 
-using whitebox = fibonacci_whitebox_test<int,int>;
+using whitebox = fibonacci_whitebox<int,int>;
 
 /** \brief an engine to do random operations and generate random Fibonacci heaps */
 class random_engine {
@@ -159,50 +159,54 @@ TEST(whitebox,a_simple_example) {
 		{3,4},
 		{5,6}
 	});
-	whitebox::data_structure_consistency_test(fh1);
+	cout << fh1.dot() << endl;
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
 	fibonacci_heap<int,int> fh2({
 		{1,2},
 		{3,4},
 		{5,6}
 	});
-	whitebox::data_structure_consistency_test(fh2);
-	fh1.meld(fh2);
-	whitebox::data_structure_consistency_test(fh1);
-	whitebox::data_structure_consistency_test(fh2);
-	fibonacci_heap<int,int> fh3;
-	whitebox::data_structure_consistency_test(fh3);
-	fh1.meld(fh3);
-	whitebox::data_structure_consistency_test(fh1);
-	whitebox::data_structure_consistency_test(fh3);
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh2));
+	// fh1.meld(fh2);
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh2));
+	// fibonacci_heap<int,int> fh3;
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh3));
+	// fh1.meld(fh3);
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh3));
 	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	node n = fh1.insert(5,5);
-	whitebox::data_structure_consistency_test(fh1);
-	fh1.remove(n);
-	whitebox::data_structure_consistency_test(fh1);
+	cout << fh1.dot() << endl;
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
+	// fh1.remove();
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
+	// fh1.remove();
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
+	// fh1.remove();
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
+	// node n = fh1.insert(5,5);
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
+	// fh1.remove(n);
+	// ASSERT_TRUE(whitebox::data_structure_consistency_test(fh1));
 }
 
 /** \brief run random operations and check consistency after each operation */
 TEST(whitebox,consistency) {
-	int steps = 10000;
-	random_engine r;
-	for(int i=0;i<steps;i++) {
-		cout << "step = " << i << endl;
-		r.random_step();
-		int a01[] = {0,1};
-		for(int i:a01) {
-			cout << "here begins whitebox test" << endl;
-			if(r.fh[i]) whitebox::data_structure_consistency_test(*r.fh[i]);
-			cout << "pass whitebox test" << endl;
-		}
-		cout << "==============================" << endl;
-	}
+	// int steps = 10000;
+	// random_engine r;
+	// for(int i=0;i<steps;i++) {
+	// 	cout << "step = " << i << endl;
+	// 	r.random_step();
+	// 	int a01[] = {0,1};
+	// 	for(int i:a01) {
+	// 		cout << "here begins whitebox test" << endl;
+	// 		if(r.fh[i]){
+	// 			ASSERT_TRUE(whitebox::data_structure_consistency_test(*r.fh[i]));
+	// 		}
+	// 		cout << "pass whitebox test" << endl;
+	// 	}
+	// 	cout << "==============================" << endl;
+	// }
 }
 
 /** \brief randomly insert,remove min, meld elements and check if binomial heap
