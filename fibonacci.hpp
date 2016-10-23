@@ -16,9 +16,12 @@
 #include <memory>
 #include <cmath>
 #include <vector>
+#include <string>
+#include <sstream>
+#include <tuple>
 
-template <typename K, typename T, typename Compare=std::less<K>>
-class fibonacci_whitebox_test;
+template <typename K, typename T, typename Compare>
+class fibonacci_whitebox;
 
 /** \brief A C++ implementation of Fibonacci heap
  *
@@ -37,7 +40,7 @@ private:
 	/** To allow user defined test class to access private members of this class,
 	  * simply define the test class name as macro FIBONACCI_HEAP_TEST_FRIEND
 	  */
-	friend class fibonacci_whitebox_test<K,T,Compare>;
+	friend class fibonacci_whitebox<K,T,Compare>;
 
 	class internal_structure;
 	class internal_data;
@@ -494,6 +497,69 @@ public:
 		// cleaned up by std::shared_ptr.
 		p->right_sibling = nullptr;
 		return n;
+	}
+
+	/** \brief generate the graph in dot format which can be used for illustration
+	 *
+	 * @param node_format a function that given the pointer address, key and data
+	 * of a node and returns the format string in [] for this node. Default is always
+	 * returns "label=<key>", which means only the key will be displayed. Return a
+	 * "style=invis" if you don't want to see nodes.
+	 * @param child_format fortmat string in [] for child pointer, default
+	 * "color=black", set it to "style=invis" if you don't want it to display.
+	 * @param parent_format fortmat string in [] for parent pointer, default
+	 * "color=green", set it to "style=invis" if you don't want it to display.
+	 * @param right_sibling_format fortmat string in [] for right_sibling pointer,
+	 * default "color=black", set it to "style=invis" if you don't want it to display.
+	 * @param left_sibling_format fortmat string in [] for left_sibling pointer,
+	 * default "color=black", set it to "style=invis" if you don't want it to display.
+	 * @return string containing the dot format of this Fibonacci heap
+	 */
+	std::string dot(std::string node_format(void *address,const K &key,const T &data) = [](void *,const K &key,const T &){ return "label="+std::to_string(key); },
+					std::string child_format = "color=black",
+					std::string parent_format = "color=green",
+					std::string right_sibling_format = "color=red",
+					std::string left_sibling_format = "color=blue"
+				   ) const {
+		std::function<std::tuple<std::string,std::string>(ssp,ssp)> traverse = [&](ssp start,ssp end)->std::tuple<std::string,std::string> {
+			if(!start) return std::make_tuple("","");
+			if(start==end) return std::make_tuple("","");
+			bool head_of_sibling_list = !end;
+			if(head_of_sibling_list) end = start;
+
+			std::ostringstream oss_nodes;
+			std::ostringstream oss_arrows;
+			// print start node
+			if(head_of_sibling_list)
+				oss_nodes << "{rank=same;";
+			oss_nodes << "addr" << start;
+			if(start->data)
+				oss_nodes << "[" << node_format(start.get(),start->data->key,start->data->data) << "];";
+			// print pointers of start node
+			if(start->right_sibling)
+				oss_arrows << "addr" << start << "->addr" << start->right_sibling << "[" << right_sibling_format << "];";
+			if(!start->left_sibling.expired())
+				oss_arrows << "addr" << start << "->addr" << start->left_sibling.lock() << "[" << left_sibling_format << "];";
+			if(start->child)
+				oss_arrows << "addr" << start << "->addr" << start->child << "[" << child_format << "];";
+			if(!start->parent.expired())
+				oss_arrows << "addr" << start << "->addr" << start->parent.lock() << "[" << parent_format << "];";
+			// collect and combine results from other elements in sibling lilst and children
+			std::tuple<std::string,std::string> sibling_output = traverse(start->right_sibling,end);
+			oss_nodes << std::get<0>(sibling_output);
+			if(head_of_sibling_list)
+				oss_nodes << "}";
+			oss_arrows << std::get<1>(sibling_output);
+			std::tuple<std::string,std::string> child_output = traverse(start->child,nullptr);
+			oss_nodes << std::get<0>(child_output);
+			oss_arrows << std::get<1>(child_output);
+			return std::make_tuple(oss_nodes.str(),oss_arrows.str());
+		};
+		std::ostringstream oss;
+		oss << "digraph addr" << this << "{min->addr" << min << "[" << child_format << "];";
+		std::tuple<std::string,std::string> traverse_output = traverse(min,nullptr);
+		oss << std::get<0>(traverse_output) << std::get<1>(traverse_output) << "}";
+		return oss.str();
 	}
 };
 
