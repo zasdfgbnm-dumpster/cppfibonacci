@@ -510,16 +510,22 @@ public:
 	 * @param parent_format fortmat string in [] for parent pointer, default
 	 * "color=green", set it to "style=invis" if you don't want it to display.
 	 * @param right_sibling_format fortmat string in [] for right_sibling pointer,
-	 * default "color=black", set it to "style=invis" if you don't want it to display.
+	 * default "color=red", set it to "style=invis" if you don't want it to display.
 	 * @param left_sibling_format fortmat string in [] for left_sibling pointer,
-	 * default "color=black", set it to "style=invis" if you don't want it to display.
+	 * default "color=blue", set it to "style=invis" if you don't want it to display.
+	 * @param self_left_right_format to display correctly, the case that both left_sibling
+	 * and right_sibling of a node point to itself is a special case to handle,
+	 * this parameter is the format string in [] for this special case. Usually
+	 * you need to create a double direction arrow with colors the color for left_sibling
+	 * and the color for right_sibling. Default value is "dir=both color="red:blue"".
 	 * @return string containing the dot format of this Fibonacci heap
 	 */
 	std::string dot(std::string node_format(void *address,const K &key,const T &data) = [](void *,const K &key,const T &){ return "label="+std::to_string(key); },
 					std::string child_format = "color=black",
 					std::string parent_format = "color=green",
 					std::string right_sibling_format = "color=red",
-					std::string left_sibling_format = "color=blue"
+					std::string left_sibling_format = "color=blue",
+					std::string self_left_right_format = "dir=both color=\"red:blue\""
 				   ) const {
 		std::function<std::tuple<std::string,std::string>(ssp,ssp)> traverse = [&](ssp start,ssp end)->std::tuple<std::string,std::string> {
 			if(!start) return std::make_tuple("","");
@@ -536,10 +542,14 @@ public:
 			if(start->data)
 				oss_nodes << "[" << node_format(start.get(),start->data->key,start->data->data) << "];";
 			// print pointers of start node
-			if(start->right_sibling)
-				oss_arrows << "addr" << start << "->addr" << start->right_sibling << "[" << right_sibling_format << "];";
-			if(!start->left_sibling.expired())
-				oss_arrows << "addr" << start << "->addr" << start->left_sibling.lock() << "[" << left_sibling_format << "];";
+			if(start==start->right_sibling&&start==start->left_sibling.lock()) {
+				oss_arrows << "addr" << start << "->addr" << start << "[" << self_left_right_format << "];";
+			} else {
+				if(start->right_sibling)
+					oss_arrows << "addr" << start << "->addr" << start->right_sibling << "[" << right_sibling_format << "];";
+				if(!start->left_sibling.expired())
+					oss_arrows << "addr" << start << "->addr" << start->left_sibling.lock() << "[" << left_sibling_format << "];";
+			}
 			if(start->child)
 				oss_arrows << "addr" << start << "->addr" << start->child << "[" << child_format << "];";
 			if(!start->parent.expired())
@@ -556,7 +566,7 @@ public:
 			return std::make_tuple(oss_nodes.str(),oss_arrows.str());
 		};
 		std::ostringstream oss;
-		oss << "digraph addr" << this << "{min->addr" << min << "[" << child_format << "];";
+		oss << "digraph{min->addr" << min << "[" << child_format << "];";
 		std::tuple<std::string,std::string> traverse_output = traverse(min,nullptr);
 		oss << std::get<0>(traverse_output) << std::get<1>(traverse_output) << "}";
 		return oss.str();
