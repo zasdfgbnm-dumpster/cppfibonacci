@@ -33,6 +33,7 @@ public:
 	double pmeld = 0.1;
 	double premoveany = 0.5;
 	double pdecreasekey = 0.5;
+	size_t init_size = 400;
 
 	/** \brief the probability that a Fibonacci heap has a given size */
 	virtual double probability(size_t size) {
@@ -72,6 +73,14 @@ public:
 			if(verbose)
 				cout << ".initialize()" << endl;
 			fh[i] = make_shared<fh_t>();
+			while(fh[i]->size()<init_size) {
+				int key = uint(rng);
+				int value = uint(rng);
+				if(verbose)
+					cout << ".insert(" << key << "," << value << ")" << endl;
+				// insert
+				nodes[i].push_back(fh[i]->insert(key,value));
+			}
 			if(verbose)
 				show();
 			return;
