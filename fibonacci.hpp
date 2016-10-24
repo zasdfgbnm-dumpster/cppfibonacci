@@ -506,19 +506,27 @@ public:
 	 * of a node and returns the format string in [] for this node. Default is always
 	 * returns "label=<key>", which means only the key will be displayed. Return a
 	 * "style=invis" if you don't want to see nodes.
+	 *
 	 * @param child_format fortmat string in [] for child pointer, default
 	 * "color=black", set it to "style=invis" if you don't want it to display.
+	 *
 	 * @param parent_format fortmat string in [] for parent pointer, default
 	 * "color=green", set it to "style=invis" if you don't want it to display.
+	 *
 	 * @param right_sibling_format fortmat string in [] for right_sibling pointer,
 	 * default "color=red", set it to "style=invis" if you don't want it to display.
+	 *
 	 * @param left_sibling_format fortmat string in [] for left_sibling pointer,
 	 * default "color=blue", set it to "style=invis" if you don't want it to display.
-	 * @param self_left_right_format to display correctly, the case that both left_sibling
-	 * and right_sibling of a node point to itself is a special case to handle,
-	 * this parameter is the format string in [] for this special case. Usually
-	 * you need to create a double direction arrow with colors the color for left_sibling
-	 * and the color for right_sibling. Default value is "dir=both color="red:blue"".
+	 *
+	 * @param double_arrow_format to display correctly, the case that two arrows
+	 * of different style has same starting and ending is a special case to handle.
+	 * This happens when both left_sibling and right_sibling of a node point to itself,
+	 * or when there are two elements in a sibling list. This parameter is the format
+	 * string in [] for this special case. Usually you need to create a double direction
+	 * arrow with colors the color for left_sibling and the color for right_sibling.
+	 * Default value is "dir=both color="red:blue"".
+	 *
 	 * @return string containing the dot format of this Fibonacci heap
 	 */
 	std::string dot(std::string node_format(void *address,const K &key,const T &data) = [](void *,const K &key,const T &){ return "label="+std::to_string(key); },
@@ -526,7 +534,7 @@ public:
 					std::string parent_format = "color=green",
 					std::string right_sibling_format = "color=red",
 					std::string left_sibling_format = "color=blue",
-					std::string self_left_right_format = "dir=both color=\"red:blue\""
+					std::string double_arrow_format = "dir=both color=\"red:blue\""
 				   ) const {
 		using nodes_t = std::map<int,std::vector<std::string>>;
 		std::function<std::tuple<nodes_t,std::string>(int,ssp,ssp)> traverse = [&](int depth,ssp start,ssp end)->std::tuple<nodes_t,std::string> {
@@ -547,11 +555,15 @@ public:
 
 			// print pointers of start node
 			if(start==start->right_sibling&&start==start->left_sibling.lock()) {
-				oss_arrows << "addr" << start << "->addr" << start << "[" << self_left_right_format << "];";
+				oss_arrows << "addr" << start << "->addr" << start << "[" << double_arrow_format << "];";
 			} else {
-				if(start->right_sibling)
-					oss_arrows << "addr" << start << "->addr" << start->right_sibling << "[" << right_sibling_format << "];";
-				if(!start->left_sibling.expired())
+				if(start->right_sibling) {
+					if(start->right_sibling->left_sibling.lock()==start)
+						oss_arrows << "addr" << start << "->addr" << start->right_sibling << "[" << double_arrow_format << "];";
+					else
+						oss_arrows << "addr" << start << "->addr" << start->right_sibling << "[" << right_sibling_format << "];";
+				}
+				if(!start->left_sibling.expired()&&start->left_sibling.lock()->right_sibling!=start)
 					oss_arrows << "addr" << start << "->addr" << start->left_sibling.lock() << "[" << left_sibling_format << "];";
 			}
 			if(start->child)
