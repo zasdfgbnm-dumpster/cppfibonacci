@@ -354,7 +354,7 @@ public:
 	 *
 	 * @return number of elements stored in this Fibonacci heap
 	 */
-	size_t size() { return _size; }
+	size_t size() const { return _size; }
 
 	/** \brief Insert an element.
 	 *
