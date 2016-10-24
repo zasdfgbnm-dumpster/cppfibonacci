@@ -51,6 +51,8 @@ public:
 
 	/** \brief make a random step */
 	virtual void random_step() {
+		if(verbose)
+			cout << "=================================================" << endl;
 		if(verbose) {
 			cout << "step = " << count++;
 			cout << " , size = ";
@@ -214,8 +216,6 @@ TEST(whitebox,binomial) {
 				ASSERT_TRUE(whitebox::is_binomial(*r.fh[i]));
 			}
 		}
-		if(verbose)
-			cout << "=================================================" << endl;
 	}
 }
 
@@ -231,8 +231,6 @@ TEST(whitebox,consistency) {
 				whitebox::data_structure_consistency_test(*r.fh[i]);;
 			}
 		}
-		if(verbose)
-			cout << "=================================================" << endl;
 	}
 }
 
