@@ -496,6 +496,7 @@ public:
 		cascading_cut(p->parent.lock());
 		// cut the loop so that the resource for deleted structure node can be
 		// cleaned up by std::shared_ptr.
+		p->child = nullptr;
 		p->right_sibling = nullptr;
 		return n;
 	}

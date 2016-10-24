@@ -10,10 +10,11 @@ using namespace std;
 using namespace std;
 
 using whitebox = fibonacci_whitebox<int,int>;
-const bool verbose = false;
+bool verbose = false;
 
 /** \brief an engine to do random operations and generate random Fibonacci heaps */
 class random_fibonacci_heap_engine {
+	int count = 0;
 public:
 	using fh_t = fibonacci_heap<int,int>;
 	random_device r;
@@ -40,15 +41,23 @@ public:
 		return exp(-(size-mu)*(size-mu)/(2*s*s));
 	};
 
+	void show() {
+		if(fh[0])
+			cout << fh[0]->dot() << endl;
+		if(fh[1])
+			cout << fh[1]->dot() << endl;
+	}
+
 	/** \brief make a random step */
 	virtual void random_step() {
 		if(verbose) {
-			cout << "size = ";
+			cout << "step = " << count++;
+			cout << " , size = ";
 			if(fh[0]==nullptr)
 				cout << "null";
 			else
 				cout << fh[0]->size();
-			cout << " , ";
+			cout << ",";
 			if(fh[1]==nullptr)
 				cout << "null";
 			else
@@ -57,50 +66,50 @@ public:
 		}
 		int i = ui01(rng);
 		if(verbose)
-			cout << "i = "  << i << endl;
+			cout << "fh["  << i << "]";
 		// initialize or nothing
 		if(fh[0]==nullptr&&fh[1]==nullptr) {
 			if(verbose)
-				cout << "initialize" << endl;
+				cout << ".initialize()" << endl;
 			fh[i] = make_shared<fh_t>();
 			if(verbose)
-				cout << "------------------" << endl;
+				show();
 			return;
 		}
 		// meld or nothing
 		if(fh[0]!=nullptr && fh[1]!=nullptr && u01(rng)<pmeld) {
 			if(verbose)
-				cout << "meld" << endl;
+				cout << ".meld(fh[" << 1-i << "])" << endl;
 			fh[i]->meld(*fh[1-i]);
 			nodes[i].insert(nodes[i].end(),nodes[1-i].begin(),nodes[1-i].end());
 			nodes[1-i].clear();
 			if(verbose)
-				cout << "------------------" << endl;
+				show();
 			return;
 		}
 		// destroy one or nothing
 		if(fh[0]!=nullptr && fh[1]!=nullptr && u01(rng)<pdestroy) {
 			if(verbose)
-				cout << "destroy" << endl;
+				cout << ".destroy()" << endl;
 			fh[i].reset();
 			nodes[i].clear();
 			if(verbose)
-				cout << "------------------" << endl;
+				show();
 			return;
 		}
 		// create new or nothing
 		if(fh[i]==nullptr && u01(rng)<pnew) {
 			if(u01(rng)<pcopy) {
 				if(verbose)
-					cout << "copy" << endl;
+					cout << " = fh[" << 1-i << "]" << endl;
 				fh[i] = make_shared<fh_t>(*fh[1-i]);
 			} else {
 				if(verbose)
-					cout << "new empty" << endl;
+					cout << " = new" << endl;
 				fh[i] = make_shared<fh_t>();
 			}
 			if(verbose)
-				cout << "------------------" << endl;
+				show();
 			return;
 		}
 		if(fh[i]==nullptr)
@@ -114,124 +123,72 @@ public:
 			acceptrate = probability(fh[i]->size()+1)/probability(fh[i]->size());
 		else
 			acceptrate = probability(fh[i]->size()-1)/probability(fh[i]->size());
-		if(verbose)
-			cout << "accept rate = " << acceptrate << endl;
 		if(u01(rng)<acceptrate) {
 			if(movetype<0.5) {
+				int key = uint(rng);
+				int value = uint(rng);
 				if(verbose)
-					cout << "insert" << endl;
+					cout << ".insert(" << key << "," << value << ")" << endl;
 				// insert
-				nodes[i].push_back(fh[i]->insert(uint(rng),uint(rng)));
+				nodes[i].push_back(fh[i]->insert(key,value));
 				if(verbose)
-					cout << "------------------" << endl;
+					show();
 				return;
 			} else {
 				if((!nodes[i].empty())&&u01(rng)<premoveany) {
-					if(verbose)
-						cout << "remove(node)" << endl;
 					// remove(node)
 					size_t s = nodes[i].size();
 					uniform_int_distribution<int> dist(0,s-1);
 					size_t rmpos = dist(rng);
+					if(verbose)
+						cout << ".remove(" << nodes[i][rmpos].key() << ")" << endl;
 					fh[i]->remove(nodes[i][rmpos]);
 					nodes[i].erase(nodes[i].begin()+rmpos);
 					if(verbose)
-						cout << "------------------" << endl;
+						show();
 					return;
 				} else { // remove()
 					if(verbose)
-						cout << "remove()" << endl;
+						cout << ".remove()" << endl;
 					fh_t::node r = fh[i]->remove();
 					nodes[i].erase(remove(nodes[i].begin(),nodes[i].end(),r),nodes[i].end());
 					if(verbose)
-						cout << "------------------" << endl;
+						show();
 					return;
 				}
 			}
 		} else {
 			if((!nodes[i].empty())&&u01(rng)<pdecreasekey) {
-				if(verbose)
-					cout << "decrease key" << endl;
 				// decrease_key(node)
 				size_t s = nodes[i].size();
 				uniform_int_distribution<int> dist(0,s-1);
 				fh_t::node n = nodes[i][dist(rng)];
 				uniform_int_distribution<int> dist2(numeric_limits<int>::min(),n.key());
-				fh[i]->decrease_key(n,dist2(rng));
+				int target = dist2(rng);
 				if(verbose)
-					cout << "------------------" << endl;
+					cout << ".decrease_key(" << n.key() << "->" << target << endl;
+				fh[i]->decrease_key(n,target);
+				if(verbose)
+					show();
 				return;
 			} else {
+				int key = uint(rng);
+				int value = uint(rng);
 				if(verbose)
-					cout << "insert & remove min" << endl;
-				// insert then remove min
-				nodes[i].push_back(fh[i]->insert(uint(rng),uint(rng)));
+					cout << ".insert(" << key << "," << value << ")" << endl;
+				// insert
+				nodes[i].push_back(fh[i]->insert(key,value));
+				if(verbose)
+					cout << "fh[" << i << "].remove()" << endl;
 				fh_t::node r = fh[i]->remove();
 				nodes[i].erase(remove(nodes[i].begin(),nodes[i].end(),r),nodes[i].end());
 				if(verbose)
-					cout << "------------------" << endl;
+					show();
 				return;
 			}
 		}
 	}
 };
-
-/** \brief a simple test that create easy Fibonacci heaps and do operations on it */
-TEST(whitebox,a_simple_example) {
-	using node = fibonacci_heap<int,int>::node;
-	fibonacci_heap<int,int> fh1({
-		{1,2},
-		{3,4},
-		{5,6}
-	});
-	cout << fh1.dot() << endl;
-	whitebox::data_structure_consistency_test(fh1);
-	fibonacci_heap<int,int> fh2({
-		{1,2},
-		{3,4},
-		{5,6}
-	});
-	whitebox::data_structure_consistency_test(fh2);
-	fh1.meld(fh2);
-	whitebox::data_structure_consistency_test(fh1);
-	whitebox::data_structure_consistency_test(fh2);
-	fibonacci_heap<int,int> fh3;
-	whitebox::data_structure_consistency_test(fh3);
-	fh1.meld(fh3);
-	whitebox::data_structure_consistency_test(fh1);
-	whitebox::data_structure_consistency_test(fh3);
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	fh1.remove();
-	whitebox::data_structure_consistency_test(fh1);
-	node n = fh1.insert(5,5);
-	whitebox::data_structure_consistency_test(fh1);
-	fh1.remove(n);
-	whitebox::data_structure_consistency_test(fh1);
-}
-
-/** \brief run random operations and check consistency after each operation */
-TEST(whitebox,consistency) {
-	// int steps = 10000;
-	// random_fibonacci_heap_engine r;
-	// for(int i=0;i<steps;i++) {
-	// 	cout << "step = " << i << endl;
-	// 	r.random_step();
-	// 	int a01[] = {0,1};
-	// 	for(int i:a01) {
-	// 		cout << "here begins whitebox test" << endl;
-	// 		if(r.fh[i]){
-	// 			whitebox::data_structure_consistency_test(*r.fh[i]);
-	// 		}
-	// 		cout << "pass whitebox test" << endl;
-	// 	}
-	// 	cout << "==============================" << endl;
-	// }
-}
 
 /** \brief randomly insert,remove min, meld elements and check if binomial heap
  * properties are maintained after each operation */
@@ -241,17 +198,28 @@ TEST(whitebox,binomial) {
 	r.pdecreasekey = 0;
 	r.premoveany = 0;
 	for(int i=0;i<steps;i++) {
-		if(verbose)
-			cout << "step = " << i << endl;
 		r.random_step();
 		int a01[] = {0,1};
 		for(int i:a01) {
 			if(r.fh[i]){
-				if(verbose) {
-					cout << "testing " << i << endl;
-					cout << r.fh[i]->dot() << endl;
-				}
 				ASSERT_TRUE(whitebox::is_binomial(*r.fh[i]));
+			}
+		}
+		if(verbose)
+			cout << "=================================================" << endl;
+	}
+}
+
+/** \brief run random operations and check consistency after each operation */
+TEST(whitebox,consistency) {
+	int steps = 100000;
+	random_fibonacci_heap_engine r;
+	for(int i=0;i<steps;i++) {
+		r.random_step();
+		int a01[] = {0,1};
+		for(int i:a01) {
+			if(r.fh[i]){
+				whitebox::data_structure_consistency_test(*r.fh[i]);;
 			}
 		}
 		if(verbose)
