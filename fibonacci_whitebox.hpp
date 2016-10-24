@@ -6,10 +6,6 @@
 #include <tuple>
 #include <functional>
 
-// for debug only
-#include <iostream>
-using namespace std;
-
 #include "fibonacci.hpp"
 
 /** \brief contains tool functions for whitebox test*/
@@ -31,6 +27,22 @@ public:
 	using sd_t = std::shared_ptr<dn_t>;
 	using wd_t = std::weak_ptr<dn_t>;
 
+	/** \brief types of inconsistent errors */
+	enum consistency_errors {
+		unexpected_nullptr, ///< there shouldn't be a nullptr, but there is
+		min_tree_property_violation, ///< the min tree property is violated
+		wrong_parent_pointer, ///< parent pointer is not what it is supposed to be
+		null_left_sibling_pointer, ///< left_sibling pointer is nullptr
+		null_right_sibling_pointer, ///< right_sibling pointer is nullptr
+		doubly_linked_list_property_violation, ///< the doubly linked list property is violated
+		null_data_pointer, ///< data pointer is nullptr
+		bad_data_structure_pointer, ///< data node and structure node don't point to each other
+		bad_degree, ///< the degree value stored don't match the number of children
+		bad_min_pointer, ///< the min pointer of the Fibonacci heap does not point to the minimum value
+		bad_size, ///< the size information stored don't match the total number of nodes
+		degree_too_large ///< degree goes beyond theoretical upper bound
+	};
+
 private:
 
 	/** \brief recursively run consistency test on each internal_structure node
@@ -47,68 +59,60 @@ private:
 	 * @return number of elements inside the doubly linked list tested starting at from
 	 * this point including the parameter "node" itself
 	 */
-	static bool _data_structure_consistency_test(ss_t node, ss_t parent, ss_t head, size_t &degree) {
+	static size_t _data_structure_consistency_test(ss_t node, ss_t parent, ss_t head) {
 		// if node is null, head must also be null
 		if(!node)
-			if(head) return false;
+			if(head) throw unexpected_nullptr;
 		// if sibling test done
-		if (node==head) {
-			degree = 0;
-			return true;
-		}
+		if (node==head)
+			return 0;
 		// if this is the beginning of sibling test
 		if (head==nullptr) head = node;
 		// test min-tree property
 		if(parent)
-			if(Compare()(node->data->key,parent->data->key)) return false;
+			if(Compare()(node->data->key,parent->data->key)) throw min_tree_property_violation;
 		// test parent and sibling pointers
-		if(node->parent.expired())
-			return false;
-		else if(node->parent.lock()!=parent)
-			return false;
+		if(node->parent.lock()!=parent) throw wrong_parent_pointer;
 		if(node->left_sibling.expired())
-			return false;
+			throw null_left_sibling_pointer;
 		else if(node->left_sibling.lock()->right_sibling!=node)
-			return false;
+			throw doubly_linked_list_property_violation;
 		if(!node->right_sibling)
-			return false;
+			throw null_right_sibling_pointer;
 		else if(node->right_sibling->left_sibling.lock()!=node)
-			return false;
+			throw doubly_linked_list_property_violation;
 		// test structure and data pointers
 		if(!node->data)
-			return false;
+			throw null_data_pointer;
 		else if(node->data->structure.lock()!=node)
-			return false;
+			throw bad_data_structure_pointer;
 		// recursively run test on child and test degree
-		size_t calculated_degree;
-		bool subtreetest = _data_structure_consistency_test(node->child, node, nullptr,calculated_degree);
-		if(!subtreetest)
-			return false;
-		if(node->degree!=calculated_degree)
-			return false;
+		size_t calculated_degree = _data_structure_consistency_test(node->child, node, nullptr);
+		if(node->degree!=calculated_degree) throw bad_degree;
 		// recursively run test on siblings
-		bool siblingtest = _data_structure_consistency_test(node->right_sibling, parent, head,degree);
-		degree++;
-		return siblingtest;
+		return 1 + _data_structure_consistency_test(node->right_sibling, parent, head);
 	}
 
 	/** \brief run binomial property test on a tree rooted at root
 	 *
 	 * @param root the root of the tree to be tested
 	 */
-	static bool _expect_binomial(ss_t root) {
+	static bool _is_binomial(ss_t root) {
+		if(!root) return true;
 		size_t degree = root->degree;
-		if(degree == 0) {
-			if(!root->child) return false;
-			return true;
+		if(degree==0){
+			if(root->child) throw bad_degree;
+			else return true;
 		}
 		bool children_degrees[degree];
 		for(bool &i:children_degrees)
 			i = false;
 		ss_t p=root->child;
 		do {
-			bool subtreetest = _expect_binomial(p);
+			if(!p) throw unexpected_nullptr;
+			bool subtreetest = _is_binomial(p);
 			if(!subtreetest) return false;
+			if(p->degree<0||p->degree>=degree) return false;
 			if(children_degrees[p->degree]) return false;
 			children_degrees[p->degree] = true;
 			p=p->right_sibling;
@@ -204,36 +208,28 @@ public:
 	* 7. size
 	* 8. max_degree
 	*/
-	static bool data_structure_consistency_test(const fh_t &fh) {
+	static void data_structure_consistency_test(const fh_t &fh) {
 		// test for 1-5
-		cout << "start test" << endl;
-		size_t unused;
-		if(!_data_structure_consistency_test(fh.min,nullptr,nullptr,unused))
-			return false;
-		cout << "pass 1-5" << endl;
+		_data_structure_consistency_test(fh.min,nullptr,nullptr);
 		// test for 6
 		if(fh.min) {
 			for(ss_t p=fh.min->right_sibling; p!=fh.min; p=p->right_sibling) {
-				if(!p) return false;
-				if(Compare()(p->data->key,fh.min->data->key)) return false;
+				if(!p) throw unexpected_nullptr;
+				if(Compare()(p->data->key,fh.min->data->key)) throw bad_min_pointer;
 			}
 		}
-		cout << "pass 6" << endl;
 		// test for 7
-		if(fh._size!=count_nodes(fh.min)) return false;
-		cout << "pass 7" << endl;
+		if(fh._size!=count_nodes(fh.min)) throw bad_size;
 		// test for 8
 		if(fh.min) {
 			size_t max_deg = fh.max_degree();
 			ss_t p = fh.min;
 			do {
-				if(!p) return false;
-				if(p->degree>max_deg) return false;
+				if(!p) throw unexpected_nullptr;
+				if(p->degree>max_deg) throw degree_too_large;
 				p = p->right_sibling;
 			} while(p!=fh.min);
 		}
-		cout << "pass 8" << endl;
-		return true;
 	}
 
 	/** \brief test whether the fibonacci_heap object is copied/moved correctly
@@ -277,13 +273,16 @@ public:
 	 * This method is designed to be called in this case to expect that
 	 * the Fibonacci heap is actually a binomial heap.
 	 */
-	static bool expect_binomial(const fh_t &fh) {
+	static bool is_binomial(const fh_t &fh) {
+		if(fh.size()==0) return true;
 		ss_t p=fh.min;
 		do {
-			bool subtreetest = _expect_binomial(p);
+			bool subtreetest = _is_binomial(p);
 			if(!subtreetest) return false;
+			if(!p) throw unexpected_nullptr;
 			p=p->right_sibling;
 		} while(p!=fh.min);
+		return true;
 	}
 
 	/** \brief test whether the cleanup procedure of a Fibonacci heap works well during descruction
@@ -329,6 +328,7 @@ public:
 			if(std::get<0>(i).use_count()!=std::get<1>(i)-1) return false;
 			if(!std::get<0>(i).lock()->structure.expired()) return false;
 		}
+		return true;
 	}
 };
 

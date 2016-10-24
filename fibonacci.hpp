@@ -105,7 +105,7 @@ private:
 	 *
 	 * @return pointer to the node of the duplicated tree
 	 */
-	static ssp duplicate_nodes(std::shared_ptr<const internal_structure> root,std::shared_ptr<const internal_structure> head,ssp newhead) {
+	static ssp duplicate_nodes(std::shared_ptr<const internal_structure> root,std::shared_ptr<const internal_structure> head,ssp parent,ssp newhead) {
 		if(root==head) return nullptr;
 		ssp newroot = std::make_shared<internal_structure>(*root);
 		if(head==nullptr) {
@@ -117,15 +117,15 @@ private:
 		newroot_data->structure = newroot;
 		newroot->data = newroot_data;
 		// setup new right_sibling
-		newroot->right_sibling = duplicate_nodes(root->right_sibling, head, newhead);
+		newroot->right_sibling = duplicate_nodes(root->right_sibling, head, parent, newhead);
 		if(newroot->right_sibling==nullptr)
 			newroot->right_sibling = newhead;
 		// setup new left_sibling
 		newroot->right_sibling->left_sibling = newroot;
 		// setup new child
-		newroot->child = duplicate_nodes(root->child, nullptr, nullptr);
+		newroot->child = duplicate_nodes(root->child, nullptr, newroot, nullptr);
 		// setup new parent
-		newroot->parent.reset();
+		newroot->parent = parent;
 		if(newroot->child) newroot->child->parent = newroot;
 		return newroot;
 	}
@@ -266,7 +266,7 @@ public:
 	 *
 	 * @param old the Fibonacci heap to be copied
 	 */
-	fibonacci_heap(const fibonacci_heap &old):min(duplicate_nodes(old.min,nullptr,nullptr)),_size(old._size) {}
+	fibonacci_heap(const fibonacci_heap &old):min(duplicate_nodes(old.min,nullptr,nullptr,nullptr)),_size(old._size) {}
 
 	/** \brief the move constructor.
 	 *
