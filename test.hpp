@@ -8,23 +8,24 @@
 
 using namespace std;
 
-using whitebox = fibonacci_whitebox<int,int>;
-bool verbose = false;
-
 /** \brief an engine to do random operations and generate random Fibonacci heaps */
+template <typename val_t>
 class random_fibonacci_heap_engine {
 	int count = 0;
 public:
-	using fh_t = fibonacci_heap<int,int>;
+	using whitebox = fibonacci_whitebox<int,val_t>;
+	bool verbose = false;
+	bool showdot = false;
+	using fh_t = fibonacci_heap<int,val_t>;
 	random_device r;
 	default_random_engine rng;
 	uniform_real_distribution<double> u01 = uniform_real_distribution<double>(0,1);
 	uniform_int_distribution<int> ui01 = uniform_int_distribution<int>(0,1);
 	uniform_int_distribution<int> uint = uniform_int_distribution<int>(numeric_limits<int>::min(),numeric_limits<int>::max());
 	shared_ptr<fh_t> fh[2];
-	vector<fh_t::node> nodes[2];
+	vector<typename fh_t::node> nodes[2];
 
-	//random_fibonacci_heap_engine():rng(r()) {}
+	random_fibonacci_heap_engine():rng(r()) {}
 
 	double pnew = 0.1;
 	double pcopy = 0.5;
@@ -43,7 +44,7 @@ public:
 
 	/** \brief print out the DOT language of the two Fibonacci heap */
 	virtual void show() {
-		if(verbose) {
+		if(showdot) {
 			if(fh[0])
 				cout << fh[0]->dot() << endl;
 			if(fh[1])
@@ -135,8 +136,10 @@ public:
 	/** \brief remove min */
 	virtual void remove_min(int i) {
 		if(verbose)
-			cout << "fh["  << i << "]" << ".remove()" << endl;
-		fh_t::node r = fh[i]->remove();
+			cout << "fh["  << i << "]" << ".remove()";
+		typename fh_t::node r = fh[i]->remove();
+		if(verbose)
+			cout << " , min.key = " << r.key() << endl;
 		nodes[i].erase(remove(nodes[i].begin(),nodes[i].end(),r),nodes[i].end());
 	}
 
@@ -144,11 +147,11 @@ public:
 	virtual void decrease_key(int i) {
 		size_t s = nodes[i].size();
 		uniform_int_distribution<int> dist(0,s-1);
-		fh_t::node n = nodes[i][dist(rng)];
+		typename fh_t::node n = nodes[i][dist(rng)];
 		uniform_int_distribution<int> dist2(numeric_limits<int>::min(),n.key());
 		int target = dist2(rng);
 		if(verbose)
-			cout << "fh["  << i << "]" << ".decrease_key(" << n.key() << "->" << target << endl;
+			cout << "fh["  << i << "]" << ".decrease_key(" << n.key() << "->" << target << ")" << endl;
 		fh[i]->decrease_key(n,target);
 	}
 
