@@ -5,7 +5,6 @@
 #include <vector>
 #include <tuple>
 #include <functional>
-
 #include "fibonacci.hpp"
 
 /** \brief contains tool functions for whitebox test*/
@@ -248,14 +247,12 @@ public:
 		fh_t fh6;
 		fh6 = fh_t(fh); // copy constructor, then assignment
 		// test for 1
-		bool test1 =
-			data_structure_consistency_test(fh)  &&
-			data_structure_consistency_test(fh2) &&
-			data_structure_consistency_test(fh3) &&
-			data_structure_consistency_test(fh4) &&
-			data_structure_consistency_test(fh5) &&
-			data_structure_consistency_test(fh6);
-		if(!test1) return false;
+		data_structure_consistency_test(fh);
+		data_structure_consistency_test(fh2);
+		data_structure_consistency_test(fh3);
+		data_structure_consistency_test(fh4);
+		data_structure_consistency_test(fh5);
+		data_structure_consistency_test(fh6);
 		// test for 2
 		if(fh.min==fh2.min) return false;
 		if(fh.min==fh3.min) return false;
@@ -297,7 +294,8 @@ public:
 	static bool destroy_and_test(std::shared_ptr<fh_t> &fhptr) {
 		std::vector<ws_t> sn_clean_list;
 		std::vector<wd_t> dn_clean_list;
-		std::vector<std::tuple<wd_t,size_t>> dn_keep_list;
+		using kpl_t = std::tuple<wd_t,int>;
+		std::vector<kpl_t> dn_keep_list;
 		// dump out weak pointers to all the structure and data nodes
 		std::function<void (ss_t,ss_t)> traverse = [&](ss_t node,ss_t head) {
 			if(node==head) return;
@@ -323,7 +321,7 @@ public:
 			if(!i.expired()) return false;
 		}
 		// test for 3
-		for(std::tuple<wd_t,size_t> &i : dn_keep_list) {
+		for(kpl_t &i : dn_keep_list) {
 			if(std::get<0>(i).expired()) return false;
 			if(std::get<0>(i).use_count()!=std::get<1>(i)-1) return false;
 			if(!std::get<0>(i).lock()->structure.expired()) return false;
