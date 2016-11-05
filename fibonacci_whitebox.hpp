@@ -239,6 +239,8 @@ public:
 	 * 3. Are the tree structures kept the same?
 	 */
 	static bool copy_move_test(const fh_t &fh) {
+		if(fh.size()==0)
+			return true;
 		fh_t fh2(fh); // copy constructor
 		fh_t fh3 = fh; // copy constructor
 		fh_t fh4;

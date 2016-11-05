@@ -124,11 +124,8 @@ TEST(blackbox,leakage) {
 			}
 		}
 		// test if all instance counts of all value is zero
-		for(auto &p : instance_count::n) {
-			if(p.second!=0)
-				cout << "value = " << p.first << endl;
+		for(auto &p : instance_count::n)
 			ASSERT_EQ(p.second,0);
-		}
 		instance_count::n.clear();
 	}
 }
