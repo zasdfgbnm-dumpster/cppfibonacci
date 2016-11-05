@@ -130,10 +130,6 @@ TEST(blackbox,leakage) {
 	}
 }
 
-/** \brief randomly insert, remove, change or merge some elements and see if
- * Fibonacci heap can generate a sorted list of remaining elements*/
-TEST(blackbox,sort) {}
-
 int main(int argc, char **argv) {
 	testing::InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
