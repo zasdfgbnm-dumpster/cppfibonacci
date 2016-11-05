@@ -310,7 +310,7 @@ public:
 		};
 		traverse(fhptr->min,nullptr);
 		// destroy
-		if(fhptr.unique()) throw "the shared_ptr must be unique in order to do destroy and test";
+		if(!fhptr.unique()) throw "the shared_ptr must be unique in order to do destroy and test";
 		fhptr.reset();
 		// test for 1
 		for(ws_t &i : sn_clean_list) {

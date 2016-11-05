@@ -1,3 +1,6 @@
+#include <iostream>
+using namespace std;
+
 #include "test.hpp"
 #include "fibonacci_whitebox.hpp"
 
@@ -62,13 +65,11 @@ TEST(whitebox,destroy) {
 			r.random_step();
 		int a01[] = {0,1};
 		for(int i:a01) {
-			// random throw items in r.nodes
 			if(r.fh[i]){
+				// random throw items in r.nodes
 				auto it = std::remove_if(r.nodes[i].begin(), r.nodes[i].end(), [&](random_fibonacci_heap_engine::fh_t::node&)->bool{ return r.u01(r.rng)<pthrow; });
 				r.nodes[i].erase(it, r.nodes[i].end());
-				cout << "before test" << endl;
 				ASSERT_TRUE(whitebox::destroy_and_test(r.fh[i]));
-				cout << "after test" << endl;
 			}
 		}
 	}
