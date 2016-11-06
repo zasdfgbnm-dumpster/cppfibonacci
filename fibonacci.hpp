@@ -328,6 +328,9 @@ public:
 
 	public:
 
+		/** \brief this will create an empty node that don't belong to any Fibonacci heap */
+		node() = default;
+
 		/** \brief get the key of this node.
 		 * @return the key of this node
 		 */
