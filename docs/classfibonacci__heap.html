@@ -109,7 +109,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:a394c7e4594e6f999c5c4735ba63fc0ab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Insert an element.  <a href="#a394c7e4594e6f999c5c4735ba63fc0ab">More...</a><br /></td></tr>
 <tr class="separator:a394c7e4594e6f999c5c4735ba63fc0ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a46a0427b577ae8c4cb50b6d7e9092ae3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classfibonacci__heap_1_1node.html">node</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classfibonacci__heap.html#a46a0427b577ae8c4cb50b6d7e9092ae3">insert</a> (<a class="el" href="classfibonacci__heap_1_1node.html">node</a> n)</td></tr>
-<tr class="memdesc:a46a0427b577ae8c4cb50b6d7e9092ae3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Insert an element.  <a href="#a46a0427b577ae8c4cb50b6d7e9092ae3">More...</a><br /></td></tr>
+<tr class="memdesc:a46a0427b577ae8c4cb50b6d7e9092ae3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Insert an element. Note that the node object passed as parameter will NOT be updated to point to the inserted node in Fibonacci heap. The user need to keep the return value in order to keep track of the newly inserted node.  <a href="#a46a0427b577ae8c4cb50b6d7e9092ae3">More...</a><br /></td></tr>
 <tr class="separator:a46a0427b577ae8c4cb50b6d7e9092ae3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9dabb78c5bd2c5831ad38952c2849ad1"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classfibonacci__heap_1_1node.html">node</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classfibonacci__heap.html#a9dabb78c5bd2c5831ad38952c2849ad1">top</a> () const</td></tr>
 <tr class="memdesc:a9dabb78c5bd2c5831ad38952c2849ad1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the top element.  <a href="#a9dabb78c5bd2c5831ad38952c2849ad1">More...</a><br /></td></tr>
@@ -508,7 +508,7 @@ template&lt;typename K, typename T, typename Compare = std::less&lt;K&gt;&gt; </
 </table>
 </div><div class="memdoc">
 
-<p>Insert an element. </p>
+<p>Insert an element. Note that the node object passed as parameter will NOT be updated to point to the inserted node in Fibonacci heap. The user need to keep the return value in order to keep track of the newly inserted node. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">node</td><td>the node object holding the key and data of the element to be inserted </td></tr>

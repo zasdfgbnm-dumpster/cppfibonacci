@@ -376,6 +376,9 @@ public:
 	node insert(K key,T &&data)  { return insert(std::make_shared<internal_data>(key, data)); }
 
 	/** \brief Insert an element.
+	 * Note that the node object passed as parameter will NOT be updated to point to the
+	 * inserted node in Fibonacci heap. The user need to keep the return value in order
+	 * to keep track of the newly inserted node.
 	 *
 	 * @param node the node object holding the key and data of the element to be inserted
 	 * @return node object holding the inserted element
