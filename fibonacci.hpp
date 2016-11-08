@@ -239,7 +239,7 @@ private:
 		return std::floor(std::log(_size)/std::log((std::sqrt(5.0)+1.0)/2.0));
 	}
 
-	ssp min = nullptr;
+	ssp min;
 	size_t _size = 0;
 
 public:
